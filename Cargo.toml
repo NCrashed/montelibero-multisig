@@ -1,0 +1,6 @@
+[workspace]
+
+members = [
+    "multisig-service",
+    "montelibero-transactions",
+]
