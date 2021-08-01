@@ -6,3 +6,13 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+thiserror = "1.0.26"
+sha2 = "0.9.5"
+hex-literal = "0.3.3"
+
+[dependencies.substrate-stellar-sdk]
+# path = "../../substrate-stellar-sdk"
+git = "https://github.com/ncrashed/substrate-stellar-sdk"
+revision = "3d0a189e69701f787eb06592065ee56674d0a693"
+#version = "0.2.2"
+features = [ "offchain", "all-types" ]

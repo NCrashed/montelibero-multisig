@@ -8,6 +8,7 @@ edition = "2018"
 [dependencies]
 montelibero-transactions = { path = "../montelibero-transactions" }
 rocket = { git = "https://github.com/SergioBenitez/Rocket", rev = "31d06ee714c7cdab1911a8cb8fd5f9e148cc201f" }
+hex = "0.4.3"
 
 [dependencies.rocket_dyn_templates]
 git = "https://github.com/SergioBenitez/Rocket"
