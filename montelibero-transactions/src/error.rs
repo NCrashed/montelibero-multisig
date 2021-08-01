@@ -12,6 +12,8 @@ pub enum MtlError {
     DeprecatedTxVersion,
     #[error("Unsupported transaction type")]
     UnsupportedTx,
+    #[error("Transaction has non standard fee")]
+    NonStandardFee,
 }
 
 pub type Result<T> = std::result::Result<T, MtlError>;
