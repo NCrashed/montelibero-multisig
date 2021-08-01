@@ -1,0 +1,16 @@
+{{#*inline "page"}}
+
+<div class="row">
+    <div class="col text-center">
+        {{#if is_error}}
+        <h3>Failed to create tx</h3>
+        <h4><span class="tx-error">{{error_msg}}</span></h4>
+        {{else}}
+        <h3>Transaction is created</h3>
+        <h4><a href="/view?tid={{txid}}">{{txid}}</a></h4>
+        {{/if}}
+    </div>
+</div>
+
+{{/inline}}
+{{~> (parent)~}}

@@ -1,0 +1,16 @@
+{{#*inline "page"}}
+
+<form action="/create" method="post">
+    <fieldset id="create-tx">
+        <legend>New transaction</legend>
+        <p>
+            <label for="tx_body">Transaction body</label>
+            <textarea id="tx_body" name="tx_body" placeholder="Transaction body from Stellar laboratory or other XDR encoded string"></textarea>
+        </p>
+        <input type="submit" class="button primary" value="Create"/>
+    </fieldset>
+</form>
+
+{{/inline}}
+{{~> (parent)~}}
+
