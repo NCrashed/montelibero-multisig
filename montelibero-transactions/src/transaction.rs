@@ -1,15 +1,17 @@
 use super::constants::*;
 use super::error::*;
+use super::account::*;
 use sha2::{Digest, Sha256};
 use substrate_stellar_sdk::{
-    horizon::Horizon, Transaction,
+    Transaction,
     network::PUBLIC_NETWORK,
     types::{
         TransactionSignaturePayload, TransactionSignaturePayloadTaggedTransaction,
-        TransactionV1Envelope,
+        TransactionV1Envelope, TimePoint
     },
     IntoHash, IntoMuxedAccountId, MuxedAccount, TransactionEnvelope, XdrCodec, AccountId
 };
+use std::time::{SystemTime, UNIX_EPOCH};
 
 pub struct MtlTransaction(TransactionV1Envelope);
 
@@ -33,10 +35,6 @@ pub fn guard_fee(tx: &Transaction) -> Result<()> {
     Ok(())
 }
 
-fn horizon_mainnet() -> Horizon {
-    Horizon::new("https://horizon.stellar.org")
-}
-
 /// Parse and validate a raw MTL transaction
 pub fn parse_mtl_tx(raw_tx: &str) -> Result<MtlTransaction> {
     let tx_envelope = TransactionEnvelope::from_base64_xdr(raw_tx)?;
@@ -58,8 +56,16 @@ pub fn parse_mtl_tx(raw_tx: &str) -> Result<MtlTransaction> {
 
 pub fn validate_mtl_tx(raw_tx: &str) -> Result<MtlTransaction> {
     let tx = parse_mtl_tx(raw_tx)?;
-    tx.validate_publish()?;
+    tx.validate_create()?;
     Ok(tx)
+}
+
+fn get_current_time() -> TimePoint {
+    let start = SystemTime::now();
+    let since_the_epoch = start
+        .duration_since(UNIX_EPOCH)
+        .expect("Time went backwards");
+    since_the_epoch.as_secs()
 }
 
 impl MtlTransaction {
@@ -87,12 +93,42 @@ impl MtlTransaction {
         }
     }
 
+    pub fn has_time_window(&self) -> bool {
+        match &self.0.tx.time_bounds {
+            None => true,
+            Some(bounds) => {
+                let current = get_current_time();
+                if bounds.min_time == 0 && bounds.max_time > 0 {
+                    if bounds.max_time < current + SIGNING_TIME_WINDOW {
+                        return false;
+                    } 
+                } else if bounds.max_time > 0 {
+                    let adjust_min = u64::max(current, bounds.min_time);
+                    if bounds.max_time < adjust_min || adjust_min + SIGNING_TIME_WINDOW > bounds.max_time {
+                        return false;
+                    }
+                }
+                true
+            }
+        }
+    }
+
+    pub fn guard_time_window(&self) -> Result<()> {
+        if !self.has_time_window() {
+            return Err(MtlError::TooLittleTimeBound);
+        }
+        Ok(())
+    }
+
     /// Statefull validation if the TX is valid for future publishing
-    pub fn validate_publish(&self) -> Result<()> {
+    pub fn validate_create(&self) -> Result<()> {
         let seq_num = self.fetch_sequence_number()?;
         if seq_num > self.0.tx.seq_num {
             return Err(MtlError::SequenceNumber);
         }
+        self.guard_time_window()?;
+        let signers = get_mtl_signers()?;
+        TransactionEnvelope::EnvelopeTypeTx(self.0.clone()).check_signatures(&PUBLIC_NETWORK, &signers)?;
         Ok(())
     }
 }

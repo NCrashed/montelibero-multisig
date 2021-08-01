@@ -12,10 +12,14 @@ pub enum MtlError {
     DeprecatedTxVersion,
     #[error("Unsupported transaction type")]
     UnsupportedTx,
+    #[error("Unsupported signer key in foundation")]
+    UnsupportedSignerKey,
     #[error("Transaction has non standard fee")]
     NonStandardFee,
     #[error("Transaction has overdue sequence number")]
     SequenceNumber,
+    #[error("Transaction has too little time window for signing")]
+    TooLittleTimeBound, 
     #[error("Failed to request from Horizon server: {0}")]
     FetchError(#[from] substrate_stellar_sdk::horizon::FetchError),
 }
