@@ -13,5 +13,5 @@ hex-literal = "0.3.3"
 [dependencies.substrate-stellar-sdk]
 # path = "../../substrate-stellar-sdk"
 git = "https://github.com/ncrashed/substrate-stellar-sdk"
-revision = "56c02ab6eab9ba621f5c16bd8e94a9b0b70f9824"
+revision = "9ed5ddb6521ce70ec4ccba08a2b83e7736f8870c"
 features = [ "offchain", "all-types" ]
