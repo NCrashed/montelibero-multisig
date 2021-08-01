@@ -14,6 +14,10 @@ pub enum MtlError {
     UnsupportedTx,
     #[error("Transaction has non standard fee")]
     NonStandardFee,
+    #[error("Transaction has overdue sequence number")]
+    SequenceNumber,
+    #[error("Failed to request from Horizon server: {0}")]
+    FetchError(#[from] substrate_stellar_sdk::horizon::FetchError),
 }
 
 pub type Result<T> = std::result::Result<T, MtlError>;

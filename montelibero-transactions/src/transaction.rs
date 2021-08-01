@@ -8,7 +8,7 @@ use substrate_stellar_sdk::{
         TransactionSignaturePayload, TransactionSignaturePayloadTaggedTransaction,
         TransactionV1Envelope,
     },
-    IntoHash, IntoMuxedAccountId, MuxedAccount, TransactionEnvelope, XdrCodec,
+    IntoHash, IntoMuxedAccountId, MuxedAccount, TransactionEnvelope, XdrCodec, AccountId
 };
 
 pub struct MtlTransaction(TransactionV1Envelope);
@@ -33,6 +33,10 @@ pub fn guard_fee(tx: &Transaction) -> Result<()> {
     Ok(())
 }
 
+fn horizon_mainnet() -> Horizon {
+    Horizon::new("https://horizon.stellar.org")
+}
+
 /// Parse and validate a raw MTL transaction
 pub fn parse_mtl_tx(raw_tx: &str) -> Result<MtlTransaction> {
     let tx_envelope = TransactionEnvelope::from_base64_xdr(raw_tx)?;
@@ -52,6 +56,12 @@ pub fn parse_mtl_tx(raw_tx: &str) -> Result<MtlTransaction> {
     }
 }
 
+pub fn validate_mtl_tx(raw_tx: &str) -> Result<MtlTransaction> {
+    let tx = parse_mtl_tx(raw_tx)?;
+    tx.validate_publish()?;
+    Ok(tx)
+}
+
 impl MtlTransaction {
     pub fn txid(&self) -> Vec<u8> {
         let payload = TransactionSignaturePayload {
@@ -63,5 +73,26 @@ impl MtlTransaction {
         let mut hasher = Sha256::new();
         hasher.update(payload.to_xdr());
         hasher.finalize().to_vec()
+    }
+
+
+    pub fn fetch_sequence_number(&self) -> Result<i64> {
+        Ok(horizon_mainnet().fetch_next_sequence_number(self.source_account()?, FETCH_TIMEOUT)?)
+    }
+    
+    pub fn source_account(&self) -> Result<AccountId> {
+        match self.0.tx.source_account {
+            MuxedAccount::KeyTypeEd25519(k) => Ok(AccountId::PublicKeyTypeEd25519(k)),
+            _ => Err(MtlError::WrongSourceAccount)
+        }
+    }
+
+    /// Statefull validation if the TX is valid for future publishing
+    pub fn validate_publish(&self) -> Result<()> {
+        let seq_num = self.fetch_sequence_number()?;
+        if seq_num > self.0.tx.seq_num {
+            return Err(MtlError::SequenceNumber);
+        }
+        Ok(())
     }
 }

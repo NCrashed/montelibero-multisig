@@ -7,7 +7,7 @@ use rocket::form::Form;
 use rocket::fs::{relative, FileServer};
 use rocket::response::Redirect;
 
-use montelibero_transactions::transaction::parse_mtl_tx;
+use montelibero_transactions::transaction::validate_mtl_tx;
 
 #[get("/")]
 pub fn index() -> Redirect {
@@ -57,7 +57,7 @@ async fn post_transaction(tx: Form<CreateTx>) -> Template {
             },
         )
     } else {
-        match parse_mtl_tx(&tx.tx_body) {
+        match validate_mtl_tx(&tx.tx_body) {
             Ok(mtx) => Template::render(
                 "create-tx-response",
                 &context! {
