@@ -4,6 +4,14 @@
     <fieldset id="create-tx">
         <legend>New transaction</legend>
         <p>
+            <label for="tx_title">Transaction title</label>
+            <input type="text" id="tx_title" name="tx_title" placeholder="Required tittle"></input>
+        </p>
+        <p>
+            <label for="tx_description">Description</label>
+            <textarea id="tx_description" name="tx_description" placeholder="An optional description that can contain references for the transaction justification."></textarea>
+        </p>
+        <p>
             <label for="tx_body">Transaction body</label>
             <textarea id="tx_body" name="tx_body" placeholder="Transaction body from Stellar laboratory or other XDR encoded string"></textarea>
         </p>

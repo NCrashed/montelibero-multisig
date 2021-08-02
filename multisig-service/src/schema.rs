@@ -2,6 +2,7 @@ table! {
     transaction_updates (id) {
         id -> Nullable<Integer>,
         txid -> Text,
+        body -> Binary,
         updated -> Timestamp,
     }
 }

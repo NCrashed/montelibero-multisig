@@ -13,6 +13,7 @@ use substrate_stellar_sdk::{
 };
 use std::time::{SystemTime, UNIX_EPOCH};
 
+#[derive(Debug, Clone)]
 pub struct MtlTransaction(TransactionV1Envelope);
 
 pub fn is_mtl_account(acc_id: &MuxedAccount) -> Result<bool> {
@@ -130,5 +131,13 @@ impl MtlTransaction {
         let signers = get_mtl_signers()?;
         TransactionEnvelope::EnvelopeTypeTx(self.0.clone()).check_signatures(&PUBLIC_NETWORK, &signers)?;
         Ok(())
+    }
+
+    pub fn into_bytes(&self) -> Vec<u8> {
+        TransactionEnvelope::EnvelopeTypeTx(self.0.clone()).to_xdr()
+    }
+
+    pub fn into_encoding(&self) -> String {
+        std::str::from_utf8(&TransactionEnvelope::EnvelopeTypeTx(self.0.clone()).to_base64_xdr()).unwrap().to_owned()
     }
 }

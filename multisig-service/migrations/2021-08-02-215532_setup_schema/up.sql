@@ -9,6 +9,7 @@ CREATE TABLE transactions (
 CREATE TABLE transaction_updates (
   id INTEGER PRIMARY KEY, 
   txid TEXT NOT NULL,
+  body BLOB NOT NULL, 
   updated TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, 
   FOREIGN KEY(txid) REFERENCES transactions(id)
 );
