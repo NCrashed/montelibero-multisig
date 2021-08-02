@@ -11,6 +11,8 @@ in stdenv.mkDerivation rec {
     llvm
     llvmPackages.libclang
     openssl
+    sqlite
+    diesel-cli
   ];
   shellHook = ''
   export LIBCLANG_PATH="${llvmPackages.libclang}/lib"
