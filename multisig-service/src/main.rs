@@ -25,7 +25,9 @@ use std::sync::{Arc, Mutex};
 use std::collections::HashMap;
 use chrono::{NaiveDateTime, Utc, Duration};
 
+use montelibero_transactions::account::*;
 use montelibero_transactions::transaction::validate_mtl_tx;
+use montelibero_transactions::error::MtlError;
 
 struct Cache {
     blocks: Arc<Mutex<HashMap<Vec<u8>, NaiveDateTime>>>,
@@ -67,7 +69,30 @@ pub enum ViewError {
     #[error("List of transactions is not impelemented")]
     NotImplemented,
     #[error("{0}")]
+    Mtl(#[from] MtlError),
+    #[error("{0}")]
     DatabaseError(#[from] TxLoadError),
+}
+
+#[derive(Serialize)]
+pub struct ViewSigner {
+    pub key: String, 
+    pub weight: i32,
+    pub signed: bool, 
+}
+
+impl ViewSigner {
+    pub fn collect(account: &AccountResponse, signs: &[SignatureHint]) -> Result<Vec<Self>, MtlError> {
+        let mut res = Vec::new();
+        for s in get_mtl_signers(account)? {
+            res.push(ViewSigner {
+                key: std::str::from_utf8(&s.0.to_encoding()).unwrap().to_owned(),
+                weight: s.1, 
+                signed: signs.contains(&s.0.get_signature_hint()),
+            })
+        }
+        Ok(res)
+    }
 }
 
 #[get("/view?<tid>")]
@@ -98,6 +123,11 @@ async fn view_transaction(conn: TransactionsDb, cache: &State<Cache>, cookies: &
             cookies.remove(Cookie::new("is_blocker", ""));
             is_blocker = false;
         }
+        let curr_tx = tx.current().0;
+        let account = get_mtl_foundation()?;
+        let signs = curr_tx.get_signed_keys(&account)?;
+        let hints: Vec<SignatureHint> = signs.iter().map(|s| s.0.get_signature_hint()).collect();
+        let tx_collected: i32 = signs.iter().map(|s| s.1).sum();
         Ok(Template::render(
             "view-tx",
             &context! {
@@ -109,8 +139,11 @@ async fn view_transaction(conn: TransactionsDb, cache: &State<Cache>, cookies: &
                 tx_title: tx.title, 
                 tx_description: tx.description,
                 tx_last: tx.history.last().unwrap().0.into_encoding(),
+                tx_required: get_required_weight(&account),
+                tx_collected,
                 is_blocked,
                 is_blocker,
+                tx_signers: ViewSigner::collect(&account, &hints)?
             },
         ))
     }

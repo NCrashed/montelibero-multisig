@@ -28,3 +28,20 @@
     margin-bottom: 10px;
     color: darkred;
 }
+
+.signer {
+    width: 100%;
+}
+
+.singers {
+    margin-bottom: 15px;
+}
+
+.signer-key {
+    font-family: monospace;
+}
+
+.singer-signed {
+    font-weight: bold;
+    color:forestgreen;
+}

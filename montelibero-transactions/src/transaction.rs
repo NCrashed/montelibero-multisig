@@ -7,9 +7,9 @@ use substrate_stellar_sdk::{
     network::PUBLIC_NETWORK,
     types::{
         TransactionSignaturePayload, TransactionSignaturePayloadTaggedTransaction,
-        TransactionV1Envelope, TimePoint
+        TransactionV1Envelope, TimePoint, SignatureHint
     },
-    IntoHash, IntoMuxedAccountId, MuxedAccount, TransactionEnvelope, XdrCodec, AccountId
+    PublicKey, IntoHash, IntoMuxedAccountId, MuxedAccount, TransactionEnvelope, XdrCodec, AccountId
 };
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -128,7 +128,8 @@ impl MtlTransaction {
             return Err(MtlError::SequenceNumber);
         }
         self.guard_time_window()?;
-        let signers = get_mtl_signers()?;
+        let account = get_mtl_foundation()?;
+        let signers: Vec<PublicKey> = get_mtl_signers(&account)?.iter().map(|s| s.0.clone()).collect();
         TransactionEnvelope::EnvelopeTypeTx(self.0.clone()).check_signatures(&PUBLIC_NETWORK, &signers)?;
         Ok(())
     }
@@ -148,5 +149,16 @@ impl MtlTransaction {
             TransactionEnvelope::EnvelopeTypeTxV0(_) => Err(MtlError::DeprecatedTxVersion),
             _ => Err(MtlError::UnsupportedTx),
         }
-    } 
+    }
+
+    pub fn signatures(&self) -> Vec<SignatureHint> {
+        self.0.signatures.get_vec().iter().map(|s| s.hint).collect()
+    }
+
+    pub fn get_signed_keys(&self, account: &AccountResponse) -> Result<Vec<(PublicKey, i32)>> {
+        let signers = get_mtl_signers(account)?;
+        let signs: Vec<SignatureHint> = self.0.signatures.get_vec().iter().map(|s| s.hint).collect();
+
+        Ok(signers.iter().filter(|(pk, _)| signs.contains(&pk.get_signature_hint())).cloned().collect())
+    }
 }

@@ -11,11 +11,18 @@
 <h4>{{tx_title}}</h4>
 <div class="tx_description">{{tx_description}}</div>
 
+{{#if is_blocker}}
+<div class="row block-notice">
+    <h5>You blocked the transaction for 5 minutes. If you decided not to sign, you should unblock it by clicking Unblock button.</h5>
+</div>
+{{else}}
 {{#if is_blocked}}
 <div class="row block-notice">
-    <h5>Transaction is blocked for several minutes. Somebody is signing...</h5>
+    <h5>Somebody blocked the transaction for several minutes. Please, wait until the signer finishes or timeout hits.</h5>
 </div>
 {{/if}}
+{{/if}}
+
 <div class="row" id="error-container">
 </div>
 
@@ -29,9 +36,29 @@
     <a id="laboratory-url" class="button secondary outline">Open in Laboratory</a>
 </div>
 
+<h5 class="required-signs">Collected {{tx_collected}} from {{tx_required}}</h5>
+<div class="row singers">
+    <fieldset class="signer" id="signatures">
+        <legend>Signatures</legend>
+        {{#each tx_signers}}
+            <div class="row signer">
+                <div class="col-10">
+                    <a class="signer-key" href="https://stellar.expert/explorer/public/account/{{this.key}}">{{this.key}}</a>
+                </div>
+                <div class="col-1">
+                    <span class="singer-weight">{{this.weight}}</span>
+                </div>
+                <div class="col-1">
+                    {{#if this.signed}}<span class="singer-signed">Signed</span>{{/if}}
+                </div>
+            </div>
+        {{/each}}
+    </fieldset>
+</div>
+
 <form action="/update" method="post">
     <fieldset id="update-tx">
-        <legend>Updated transaction</legend>
+        <legend>Update transaction</legend>
         <p>
             <label for="tx_body">Transaction body</label>
             <textarea id="tx_body" name="tx_body" placeholder="Transaction body with new signatures"></textarea>

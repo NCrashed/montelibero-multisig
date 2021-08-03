@@ -59,6 +59,12 @@ pub struct MtlTxMeta {
     pub history: Vec<(MtlTransaction, NaiveDateTime)>,
 }
 
+impl MtlTxMeta {
+    pub fn current(&self) -> (MtlTransaction, NaiveDateTime) {
+        self.history[0].clone()
+    }
+}
+
 #[derive(Debug, Error)]
 pub enum TxLoadError {
     #[error("Failed to load tx due Database error: {0}")]
