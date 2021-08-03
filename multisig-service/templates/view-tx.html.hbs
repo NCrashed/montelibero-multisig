@@ -26,7 +26,7 @@
     {{else}}
     <button class="button" {{#if is_blocked}}disabled{{/if}} onclick="block('{{tx_id}}')">Block 5 min</button>
     {{/if}}
-    <a href="https://laboratory.stellar.org/#xdr-viewer?type=TransactionEnvelope&network=public&input={{tx_last}}" class="button secondary outline">Open in Laboratory</a>
+    <a id="laboratory-url" class="button secondary outline">Open in Laboratory</a>
 </div>
 
 <form action="/update" method="post">
@@ -60,6 +60,9 @@
 window.onload = async function(){
     const queryOpts = { name: 'clipboard-read', allowWithoutGesture: false };
     const permissionStatus = await navigator.permissions.query(queryOpts);
+
+    let url = "https://laboratory.stellar.org/#xdr-viewer?type=TransactionEnvelope&network=public&input=" + encodeURIComponent(document.querySelector(".tx-body").innerText);
+    $("#laboratory-url").attr("href", url);
 };
 
 function block(txid) {
