@@ -20,13 +20,13 @@
 </div>
 
 <div class="row control-buttons">
-    <button class="button outline">Copy URL</button>
+    <button class="button outline" onclick="copy_url()">Copy URL</button>
     {{#if is_blocker}}
     <button class="button outline" onclick="unblock('{{tx_id}}')">Unblock</button>
     {{else}}
     <button class="button" {{#if is_blocked}}disabled{{/if}} onclick="block('{{tx_id}}')">Block 5 min</button>
     {{/if}}
-    <a href="#" class="button secondary outline">Open in Laboratory</a>
+    <a href="https://laboratory.stellar.org/#xdr-viewer?type=TransactionEnvelope&network=public&input={{tx_last}}" class="button secondary outline">Open in Laboratory</a>
 </div>
 
 <form action="/update" method="post">
@@ -37,7 +37,7 @@
             <textarea id="tx_body" name="tx_body" placeholder="Transaction body with new signatures"></textarea>
         </p>
         <div class="form-buttons">
-            <button class="button primary" >Paste Transaction</button>
+            <button type="button" class="button primary" onclick="paste_tx()">Paste Transaction</button>
             {{#if is_blocker}}
                 <input type="submit" class="button primary" value="Update" />
             {{else}}
@@ -48,7 +48,7 @@
 </form>
 
 <div class="row control-buttons">
-    <button class="button outline">Copy Transaction</button>
+    <button class="button outline" onclick="copy_tx()">Copy Transaction</button>
 </div>
 <div class="row">
     <div class="col">
@@ -57,6 +57,11 @@
 </div>
 
 <script>
+window.onload = async function(){
+    const queryOpts = { name: 'clipboard-read', allowWithoutGesture: false };
+    const permissionStatus = await navigator.permissions.query(queryOpts);
+};
+
 function block(txid) {
     $.post( "/block/" + txid, function( data ) {
         if (data.error) {
@@ -76,6 +81,20 @@ function unblock(txid) {
         }
     });
 }
+
+function paste_tx() {
+    navigator.clipboard.readText().then(
+        clipText => document.querySelector("#tx_body").innerText = clipText);
+}
+
+async function copy_tx() {
+    await navigator.clipboard.writeText(document.querySelector(".tx-body").innerText);
+}
+
+async function copy_url() {
+    await navigator.clipboard.writeText(window.location.href);
+}
+
 </script>
 {{/if}}
 {{/inline}}
