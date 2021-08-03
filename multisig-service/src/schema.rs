@@ -1,6 +1,6 @@
 table! {
     transaction_updates (id) {
-        id -> Nullable<Integer>,
+        id -> Integer,
         txid -> Text,
         body -> Binary,
         updated -> Timestamp,
@@ -9,7 +9,7 @@ table! {
 
 table! {
     transactions (id) {
-        id -> Nullable<Text>,
+        id -> Text,
         title -> Text,
         description -> Text,
         body -> Binary,

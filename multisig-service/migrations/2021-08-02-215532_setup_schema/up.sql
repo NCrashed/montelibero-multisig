@@ -1,5 +1,5 @@
 CREATE TABLE transactions (
-  id TEXT PRIMARY KEY,
+  id TEXT NOT NULL PRIMARY KEY,
   title VARCHAR NOT NULL,
   description TEXT NOT NULL,
   body BLOB NOT NULL, 
@@ -7,7 +7,7 @@ CREATE TABLE transactions (
 );
 
 CREATE TABLE transaction_updates (
-  id INTEGER PRIMARY KEY, 
+  id INTEGER  NOT NULL PRIMARY KEY, 
   txid TEXT NOT NULL,
   body BLOB NOT NULL, 
   updated TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, 

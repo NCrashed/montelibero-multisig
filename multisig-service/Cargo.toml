@@ -12,6 +12,7 @@ hex = "0.4.3"
 diesel = { version = "1.4.7", features = ["sqlite", "r2d2", "chrono"] }
 diesel_migrations = "1.4.0"
 chrono = { version = "0.4.19", features = ["serde"] }
+thiserror = "1.0.26"
 
 [dependencies.rocket_dyn_templates]
 git = "https://github.com/SergioBenitez/Rocket"

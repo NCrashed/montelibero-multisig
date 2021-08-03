@@ -8,11 +8,12 @@ extern crate diesel;
 extern crate diesel_migrations;
 
 pub mod database;
+pub mod schema;
 
 use database::*;
 
 use rocket_dyn_templates::{context, Template};
-
+use thiserror::Error;
 use rocket::fairing::AdHoc;
 use rocket::form::Form;
 use rocket::fs::{relative, FileServer};
@@ -26,16 +27,57 @@ pub fn index() -> Redirect {
     Redirect::to(uri!("/", create_transaction()))
 }
 
+#[derive(Debug, Error)]
+pub enum ViewError {
+    #[error("Transaction id is not hex encoded")]
+    InvalidTxid(#[from] hex::FromHexError),
+    #[error("List of transactions is not impelemented")]
+    NotImplemented,
+    #[error("{0}")]
+    DatabaseError(#[from] TxLoadError),
+}
+
 #[get("/view?<tid>")]
-fn view_transaction(conn: TransactionsDb, tid: Option<String>) -> Template {
-    Template::render(
-        "view-tx",
-        &context! {
-            title: "Montelibero multisignature service",
-            parent: "base",
-            menu_view_tx: true,
-        },
-    )
+async fn view_transaction(conn: TransactionsDb, tid: Option<String>) -> Template {
+
+    fn render_error(err_message: &str) -> Template {
+        Template::render(
+            "view-tx",
+            &context! {
+                title: "Montelibero multisignature service",
+                parent: "base",
+                menu_view_tx: true,
+                is_error: true,
+                error_msg: err_message
+            },
+        )
+    }
+
+    async fn view(conn: TransactionsDb, mtid: Option<String>) -> Result<Template, ViewError> {
+        let txid = match mtid {
+            None => return Err(ViewError::NotImplemented),
+            Some(v) => hex::decode(&v)?,
+        };
+        let tx = get_transaction(&conn, txid.clone()).await?;
+        Ok(Template::render(
+            "view-tx",
+            &context! {
+                title: "Montelibero multisignature service",
+                parent: "base",
+                menu_view_tx: true,
+                is_error: false, 
+                tx_id: hex::encode(txid),  
+                tx_title: tx.title, 
+                tx_description: tx.description,
+                tx_last: tx.history.last().unwrap().0.into_encoding(),
+            },
+        ))
+    }
+    
+    match view(conn, tid).await {
+        Ok(t) => t,
+        Err(e) => render_error(&format!("{}", e)),
+    }
 }
 
 #[get("/create")]

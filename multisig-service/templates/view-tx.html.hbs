@@ -1,5 +1,47 @@
 {{#*inline "page"}}
 
+{{#if is_error}}
+<div class="row">
+    <div class="col text-center">
+        <h3>Failed to load tx</h3>
+        <h4><span class="tx-error">{{error_msg}}</span></h4>
+    </div>
+</div>
+{{else}}
+<h4>{{tx_title}}</h4>
+<div class="tx_description">{{tx_description}}</div>
+
+<div class="row control-buttons">
+    <button class="button outline">Copy URL</button>
+    <button class="button">Block 5 min</button>
+    <a href="#" class="button secondary outline">Open in Laboratory</a>
+</div>
+
+<form action="/update" method="post">
+    <fieldset id="update-tx">
+        <legend>Updated transaction</legend>
+        <p>
+            <label for="tx_body">Transaction body</label>
+            <textarea id="tx_body" name="tx_body" placeholder="Transaction body with new signatures"></textarea>
+        </p>
+        <div class="form-buttons">
+            <button class="button primary">Paste Transaction</button>
+            <input type="submit" class="button primary" value="Update"/>
+        </div>
+    </fieldset>
+</form>
+
+<div class="row control-buttons">
+    <button class="button outline">Copy Transaction</button>
+</div>
+<div class="row">
+    <div class="col">
+        <span class="tx-body">{{tx_last}}</span>
+    </div>
+</div>
+
+{{/if}}
+
 {{/inline}}
 {{~> (parent)~}}
 

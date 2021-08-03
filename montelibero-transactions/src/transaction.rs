@@ -37,7 +37,7 @@ pub fn guard_fee(tx: &Transaction) -> Result<()> {
 }
 
 /// Parse and validate a raw MTL transaction
-pub fn parse_mtl_tx(raw_tx: &str) -> Result<MtlTransaction> {
+pub fn parse_mtl_tx<T: AsRef<[u8]>>(raw_tx: &T) -> Result<MtlTransaction> {
     let tx_envelope = TransactionEnvelope::from_base64_xdr(raw_tx)?;
     match tx_envelope {
         TransactionEnvelope::EnvelopeTypeTx(envelope) => {
@@ -55,7 +55,7 @@ pub fn parse_mtl_tx(raw_tx: &str) -> Result<MtlTransaction> {
     }
 }
 
-pub fn validate_mtl_tx(raw_tx: &str) -> Result<MtlTransaction> {
+pub fn validate_mtl_tx<T: AsRef<[u8]>>(raw_tx: &T) -> Result<MtlTransaction> {
     let tx = parse_mtl_tx(raw_tx)?;
     tx.validate_create()?;
     Ok(tx)
@@ -140,4 +140,13 @@ impl MtlTransaction {
     pub fn into_encoding(&self) -> String {
         std::str::from_utf8(&TransactionEnvelope::EnvelopeTypeTx(self.0.clone()).to_base64_xdr()).unwrap().to_owned()
     }
+
+    pub fn from_bytes<T: AsRef<[u8]>>(bytes: &T) -> Result<Self> {
+        let tx_envelope = TransactionEnvelope::from_xdr(bytes)?;
+        match tx_envelope {
+            TransactionEnvelope::EnvelopeTypeTx(envelope) => Ok(MtlTransaction(envelope)),
+            TransactionEnvelope::EnvelopeTypeTxV0(_) => Err(MtlError::DeprecatedTxVersion),
+            _ => Err(MtlError::UnsupportedTx),
+        }
+    } 
 }
