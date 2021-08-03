@@ -2859,6 +2859,7 @@ dependencies = [
 [[package]]
 name = "substrate-stellar-sdk"
 version = "0.2.2"
+source = "git+https://github.com/ncrashed/substrate-stellar-sdk#10b3e41564e31a3397654a51a7da53bda911b467"
 dependencies = [
  "base64",
  "hex",
