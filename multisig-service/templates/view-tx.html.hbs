@@ -11,9 +11,21 @@
 <h4>{{tx_title}}</h4>
 <div class="tx_description">{{tx_description}}</div>
 
+{{#if is_blocked}}
+<div class="row block-notice">
+    <h5>Transaction is blocked for several minutes. Somebody is signing...</h5>
+</div>
+{{/if}}
+<div class="row" id="error-container">
+</div>
+
 <div class="row control-buttons">
     <button class="button outline">Copy URL</button>
-    <button class="button">Block 5 min</button>
+    {{#if is_blocker}}
+    <button class="button outline" onclick="unblock('{{tx_id}}')">Unblock</button>
+    {{else}}
+    <button class="button" {{#if is_blocked}}disabled{{/if}} onclick="block('{{tx_id}}')">Block 5 min</button>
+    {{/if}}
     <a href="#" class="button secondary outline">Open in Laboratory</a>
 </div>
 
@@ -25,8 +37,12 @@
             <textarea id="tx_body" name="tx_body" placeholder="Transaction body with new signatures"></textarea>
         </p>
         <div class="form-buttons">
-            <button class="button primary">Paste Transaction</button>
-            <input type="submit" class="button primary" value="Update"/>
+            <button class="button primary" >Paste Transaction</button>
+            {{#if is_blocker}}
+                <input type="submit" class="button primary" value="Update" />
+            {{else}}
+                <input type="submit" class="button primary" value="Update" {{#if is_blocked}}disabled{{/if}} />
+            {{/if}}
         </div>
     </fieldset>
 </form>
@@ -40,8 +56,28 @@
     </div>
 </div>
 
-{{/if}}
+<script>
+function block(txid) {
+    $.post( "/block/" + txid, function( data ) {
+        if (data.error) {
+            $(".response-error").text(data.error);
+        } else {
+            location.reload();
+        }
+    });
+}
 
+function unblock(txid) {
+    $.post( "/unblock/" + txid, function( data ) {
+        if (data.error) {
+            $(".response-error").html('<h5 class="response-error">' + data.error + '</h5>');
+        } else {
+            location.reload();
+        }
+    });
+}
+</script>
+{{/if}}
 {{/inline}}
 {{~> (parent)~}}
 

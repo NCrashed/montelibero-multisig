@@ -23,3 +23,14 @@
     margin-top: 10px;
     margin-bottom: 10px;
 }
+
+.block-notice {
+    margin-top: 10px;
+    color: darkred;
+}
+
+.response-error {
+    margin-top: 10px;
+    margin-bottom: 10px;
+    color: darkred;
+}
