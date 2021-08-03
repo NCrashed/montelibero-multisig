@@ -161,4 +161,9 @@ impl MtlTransaction {
 
         Ok(signers.iter().filter(|(pk, _)| signs.contains(&pk.get_signature_hint())).cloned().collect())
     }
+
+    pub fn is_published(&self) -> Result<bool> {
+        let res = horizon_mainnet().query_transaction(&self.txid(), FETCH_TIMEOUT)?;
+        Ok(res.successful)
+    }
 }

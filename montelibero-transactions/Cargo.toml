@@ -11,7 +11,7 @@ sha2 = "0.9.5"
 hex-literal = "0.3.3"
 
 [dependencies.substrate-stellar-sdk]
-# path = "../../substrate-stellar-sdk"
-git = "https://github.com/ncrashed/substrate-stellar-sdk"
-revision = "e7397211e68b958147d29ed4637fff55f97b7fe2"
+path = "../../substrate-stellar-sdk"
+#git = "https://github.com/ncrashed/substrate-stellar-sdk"
+#revision = "e7397211e68b958147d29ed4637fff55f97b7fe2"
 features = [ "offchain", "all-types" ]

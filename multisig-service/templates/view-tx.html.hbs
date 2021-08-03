@@ -56,23 +56,31 @@
     </fieldset>
 </div>
 
-<form action="/update" method="post">
-    <fieldset id="update-tx">
-        <legend>Update transaction</legend>
-        <p>
-            <label for="tx_body">Transaction body</label>
-            <textarea id="tx_body" name="tx_body" placeholder="Transaction body with new signatures"></textarea>
-        </p>
-        <div class="form-buttons">
-            <button type="button" class="button primary" onclick="paste_tx()">Paste Transaction</button>
-            {{#if is_blocker}}
-                <input type="submit" class="button primary" value="Update" />
-            {{else}}
-                <input type="submit" class="button primary" value="Update" {{#if is_blocked}}disabled{{/if}} />
-            {{/if}}
-        </div>
-    </fieldset>
-</form>
+{{#if tx_published}}
+    <h4 class="published"><a href="https://stellar.expert/explorer/public/tx/{{tx_id}}">Transaction is published</a></h4>
+{{else}}
+    {{#if is_invalid}}
+    <h4><span class="tx-error">Transaction is now invalid: {{tx_invalid_msg}}</span></h4>
+    {{else}}
+    <form action="/update" method="post">
+        <fieldset id="update-tx">
+            <legend>Update transaction</legend>
+            <p>
+                <label for="tx_body">Transaction body</label>
+                <textarea id="tx_body" name="tx_body" placeholder="Transaction body with new signatures"></textarea>
+            </p>
+            <div class="form-buttons">
+                <button type="button" class="button primary" onclick="paste_tx()">Paste Transaction</button>
+                {{#if is_blocker}}
+                    <input type="submit" class="button primary" value="Update" />
+                {{else}}
+                    <input type="submit" class="button primary" value="Update" {{#if is_blocked}}disabled{{/if}} />
+                {{/if}}
+            </div>
+        </fieldset>
+    </form>
+    {{/if}}
+{{/if}}
 
 <div class="row control-buttons">
     <button class="button outline" onclick="copy_tx()">Copy Transaction</button>

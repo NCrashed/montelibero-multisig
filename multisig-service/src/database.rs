@@ -33,6 +33,15 @@ pub struct TransactionUpdate {
     pub updated: NaiveDateTime,
 }
 
+#[derive(Serialize, Queryable, Insertable, Debug, Clone)]
+#[serde(crate = "rocket::serde")]
+#[table_name = "transaction_updates"]
+pub struct TransactionUpdateCreate {
+    pub txid: String,
+    pub body: Vec<u8>,
+    pub updated: NaiveDateTime,
+}
+
 pub async fn store_transaction(
     conn: &TransactionsDb,
     tx: MtlTransaction,
@@ -48,6 +57,22 @@ pub async fn store_transaction(
             created: chrono::Utc::now().naive_utc(),
         };
         diesel::insert_into(transactions::table).values(&t).execute(c)
+    })
+    .await?;
+    Ok(())
+}
+
+pub async fn store_transaction_update(
+    conn: &TransactionsDb,
+    tx: MtlTransaction,
+) -> QueryResult<()> {
+    conn.run(move |c| {
+        let t = TransactionUpdateCreate {
+            txid: hex::encode(tx.txid()),
+            body: tx.into_bytes(),
+            updated: chrono::Utc::now().naive_utc(),
+        };
+        diesel::insert_into(transaction_updates::table).values(&t).execute(c)
     })
     .await?;
     Ok(())

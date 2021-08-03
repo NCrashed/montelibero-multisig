@@ -117,35 +117,91 @@ async fn view_transaction(conn: TransactionsDb, cache: &State<Cache>, cookies: &
             Some(v) => hex::decode(&v)?,
         };
         let tx = get_transaction(&conn, txid.clone()).await?;
-        let is_blocked = cache.is_blocked(&txid);
-        let mut is_blocker = cookies.get("is_blocker").is_some();
-        if !is_blocked && is_blocker {
-            cookies.remove(Cookie::new("is_blocker", ""));
-            is_blocker = false;
-        }
         let curr_tx = tx.current().0;
-        let account = get_mtl_foundation()?;
-        let signs = curr_tx.get_signed_keys(&account)?;
-        let hints: Vec<SignatureHint> = signs.iter().map(|s| s.0.get_signature_hint()).collect();
-        let tx_collected: i32 = signs.iter().map(|s| s.1).sum();
-        Ok(Template::render(
-            "view-tx",
-            &context! {
-                title: "Montelibero multisignature service",
-                parent: "base",
-                menu_view_tx: true,
-                is_error: false, 
-                tx_id: hex::encode(txid.clone()),  
-                tx_title: tx.title, 
-                tx_description: tx.description,
-                tx_last: tx.history.last().unwrap().0.into_encoding(),
-                tx_required: get_required_weight(&account),
-                tx_collected,
-                is_blocked,
-                is_blocker,
-                tx_signers: ViewSigner::collect(&account, &hints)?
-            },
-        ))
+        match curr_tx.is_published() {
+            Ok(true) => {
+                let account = get_mtl_foundation()?;
+                let signs = curr_tx.get_signed_keys(&account)?;
+                let hints: Vec<SignatureHint> = signs.iter().map(|s| s.0.get_signature_hint()).collect();
+                let tx_collected: i32 = signs.iter().map(|s| s.1).sum();
+                Ok(Template::render(
+                    "view-tx",
+                    &context! {
+                        title: "Montelibero multisignature service",
+                        parent: "base",
+                        menu_view_tx: true,
+                        is_error: false, 
+                        tx_id: hex::encode(txid.clone()),  
+                        tx_title: tx.title, 
+                        tx_description: tx.description,
+                        tx_last: curr_tx.into_encoding(),
+                        tx_required: get_required_weight(&account),
+                        tx_collected,
+                        tx_signers: ViewSigner::collect(&account, &hints)?,
+                        tx_published: true,
+                    },
+                ))
+            }
+            _ => {
+                match curr_tx.validate_create() {
+                    Ok(_) => {
+                        let is_blocked = cache.is_blocked(&txid);
+                        let mut is_blocker = cookies.get("is_blocker").is_some();
+                        if !is_blocked && is_blocker {
+                            cookies.remove(Cookie::new("is_blocker", ""));
+                            is_blocker = false;
+                        }
+                        let account = get_mtl_foundation()?;
+                        let signs = curr_tx.get_signed_keys(&account)?;
+                        let hints: Vec<SignatureHint> = signs.iter().map(|s| s.0.get_signature_hint()).collect();
+                        let tx_collected: i32 = signs.iter().map(|s| s.1).sum();
+                        Ok(Template::render(
+                            "view-tx",
+                            &context! {
+                                title: "Montelibero multisignature service",
+                                parent: "base",
+                                menu_view_tx: true,
+                                is_error: false, 
+                                tx_id: hex::encode(txid.clone()),  
+                                tx_title: tx.title, 
+                                tx_description: tx.description,
+                                tx_last: curr_tx.into_encoding(),
+                                tx_required: get_required_weight(&account),
+                                tx_collected,
+                                is_blocked,
+                                is_blocker,
+                                tx_signers: ViewSigner::collect(&account, &hints)?
+                            },
+                        ))
+                    }
+                    Err(e) => {
+                        let account = get_mtl_foundation()?;
+                        let signs = curr_tx.get_signed_keys(&account)?;
+                        let hints: Vec<SignatureHint> = signs.iter().map(|s| s.0.get_signature_hint()).collect();
+                        let tx_collected: i32 = signs.iter().map(|s| s.1).sum();
+                        Ok(Template::render(
+                            "view-tx",
+                            &context! {
+                                title: "Montelibero multisignature service",
+                                parent: "base",
+                                menu_view_tx: true,
+                                is_error: false, 
+                                tx_id: hex::encode(txid.clone()),  
+                                tx_title: tx.title, 
+                                tx_description: tx.description,
+                                tx_last: curr_tx.into_encoding(),
+                                tx_required: get_required_weight(&account),
+                                tx_collected,
+                                tx_signers: ViewSigner::collect(&account, &hints)?,
+                                tx_invalid: true,
+                                tx_invalid_msg: format!("{}", e),
+                            },
+                        ))
+                    }
+                }
+            }
+        }
+    
     }
     
     match view(conn, cache, cookies, tid).await {
@@ -235,7 +291,7 @@ async fn unblock_transaction(conn: TransactionsDb, cache: &State<Cache>, cookies
 }
 
 #[get("/create")]
-fn create_transaction(conn: TransactionsDb) -> Template {
+fn create_transaction() -> Template {
     Template::render(
         "create-tx",
         &context! {
@@ -295,6 +351,43 @@ async fn post_transaction(conn: TransactionsDb, tx: Form<CreateTx>) -> Template 
     }
 }
 
+#[derive(FromForm)]
+struct UpdateTx {
+    tx_body: String,
+}
+
+#[post("/update", data = "<tx>")]
+async fn update_transaction(conn: TransactionsDb, cache: &State<Cache>, tx: Form<UpdateTx>) -> Result<Redirect, Template> {
+    fn render_error(err_message: &str) -> Template {
+        Template::render(
+            "create-tx-response",
+            &context! {
+                title: "Montelibero multisignature service",
+                parent: "base",
+                menu_create_tx: true,
+                is_error: true,
+                error_msg: err_message
+            },
+        )
+    }
+
+    match validate_mtl_tx(&tx.tx_body) {
+        Ok(mtx) => {
+            match store_transaction_update(&conn, mtx.clone()).await {
+                Ok(_) => {
+                    let txid = mtx.txid();
+                    cache.unblock(&txid);
+                    let url = uri!(view_transaction(tid = Some(hex::encode(txid))));
+                    Ok(Redirect::to(url))
+                },
+                Err(e) => Err(render_error(&format!("{}", e))),
+            }
+            
+        }
+        Err(e) => Err(render_error(&format!("{}", e))),
+    }
+}
+
 async fn run_migrations(rocket: Rocket<Build>) -> Rocket<Build> {
     embed_migrations!();
 
@@ -321,6 +414,7 @@ fn rocket() -> _ {
                 view_transaction,
                 block_transaction,
                 unblock_transaction,
+                update_transaction,
             ],
         )
         .manage(Cache::new())
