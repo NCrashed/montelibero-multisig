@@ -26,7 +26,7 @@ use std::collections::HashMap;
 use chrono::{NaiveDateTime, Utc, Duration};
 
 use montelibero_transactions::account::*;
-use montelibero_transactions::transaction::validate_mtl_tx;
+use montelibero_transactions::transaction::*;
 use montelibero_transactions::error::MtlError;
 
 struct Cache {
@@ -361,6 +361,18 @@ struct UpdateTx {
     tx_body: String,
 }
 
+#[derive(Debug, Error)]
+pub enum UpdateError {
+    #[error("Failed to decode transaction ID")]
+    TransactionId(#[from] hex::FromHexError),
+    #[error("Failed to load transaction: {0}")]
+    TransactionLoad(#[from] database::TxLoadError),
+    #[error("{0}")]
+    MtlError(#[from] MtlError),
+    #[error("Database error: {0}")]
+    DatabaseError(#[from] diesel::result::Error),
+}
+
 #[post("/update", data = "<tx>")]
 async fn update_transaction(conn: TransactionsDb, cache: &State<Cache>, tx: Form<UpdateTx>) -> Result<Redirect, Template> {
     fn render_error(err_message: &str) -> Template {
@@ -376,21 +388,24 @@ async fn update_transaction(conn: TransactionsDb, cache: &State<Cache>, tx: Form
         )
     }
 
-    match validate_mtl_tx(&tx.tx_body) {
-        Ok(mtx) => {
-            match store_transaction_update(&conn, mtx.clone()).await {
-                Ok(_) => {
-                    let txid = mtx.txid();
-                    cache.unblock(&txid);
-                    let url = uri!(view_transaction(tid = Some(hex::encode(txid))));
-                    Ok(Redirect::to(url))
-                },
-                Err(e) => Err(render_error(&format!("{}", e))),
-            }
-            
-        }
-        Err(e) => Err(render_error(&format!("{}", e))),
+    async fn update(conn: TransactionsDb, cache: &State<Cache>, tx: Form<UpdateTx>) -> Result<MtlTransaction, UpdateError> {
+        let mtx = validate_mtl_tx(&tx.tx_body)?;
+        let txid = mtx.txid();
+        let old_tx = get_transaction(&conn, txid.clone()).await?;
+        old_tx.current().0.validate_update(&mtx)?;
+        store_transaction_update(&conn, mtx.clone()).await?; 
+        cache.unblock(&txid);
+        Ok(mtx)
     }
+
+    match update(conn, cache, tx).await {
+        Err(e) => Err(render_error(&format!("{}", e))),
+        Ok(tx) => {
+            let url = uri!(view_transaction(tid = Some(hex::encode(tx.txid()))));
+            Ok(Redirect::to(url))
+        } 
+    }
+
 }
 
 #[derive(Debug, Error)]

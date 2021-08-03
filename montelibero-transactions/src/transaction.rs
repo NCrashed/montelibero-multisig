@@ -170,4 +170,17 @@ impl MtlTransaction {
         let res = horizon_mainnet().query_transaction(&self.txid(), FETCH_TIMEOUT)?;
         Ok(res.successful)
     }
+
+    pub fn validate_update(&self, update: &Self) -> Result<()> {
+        if self.txid() != update.txid() {
+            return Err(MtlError::UpdateContentChanged);
+        }
+        let update_signs = update.signatures();
+        for s in self.signatures() {
+            if !update_signs.contains(&s) {
+                return Err(MtlError::UpdateSignatureRemoved);
+            }
+        }
+        Ok(())
+    }
 }

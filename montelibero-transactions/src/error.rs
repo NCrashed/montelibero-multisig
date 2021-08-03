@@ -20,6 +20,12 @@ pub enum MtlError {
     SequenceNumber,
     #[error("Transaction has too little time window for signing")]
     TooLittleTimeBound, 
+    #[error("Transaction update changes it contents")]
+    UpdateContentChanged,
+    #[error("Transaction update removes signatures")]
+    UpdateSignatureRemoved,
+    #[error("Transaction update adds too much signatures")]
+    UpdateSignatureExcess,
     #[error("Failed to request from Horizon server: {0}")]
     FetchError(#[from] substrate_stellar_sdk::horizon::FetchError),
 }
