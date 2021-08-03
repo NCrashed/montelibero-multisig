@@ -36,6 +36,10 @@
     <a id="laboratory-url" class="button secondary outline">Open in Laboratory</a>
 </div>
 
+{{#if tx_published}}
+<h4 class="published"><a href="https://stellar.expert/explorer/public/tx/{{tx_id}}">Transaction is published</a></h4>
+{{/if}}
+
 <h5 class="required-signs">Collected {{tx_collected}} from {{tx_required}}</h5>
 <div class="row singers">
     <fieldset class="signer" id="signatures">
@@ -57,7 +61,7 @@
 </div>
 
 {{#if tx_published}}
-    <h4 class="published"><a href="https://stellar.expert/explorer/public/tx/{{tx_id}}">Transaction is published</a></h4>
+
 {{else}}
     {{#if is_invalid}}
     <h4><span class="tx-error">Transaction is now invalid: {{tx_invalid_msg}}</span></h4>
@@ -98,7 +102,21 @@ window.onload = async function(){
 
     let url = "https://laboratory.stellar.org/#xdr-viewer?type=TransactionEnvelope&network=public&input=" + encodeURIComponent(document.querySelector(".tx-body").innerText);
     $("#laboratory-url").attr("href", url);
+
+    setTimeout(checkUpdates, 10000);
 };
+
+function checkUpdates() {
+    $.get("/check/update/{{tx_id}}?updates={{tx_updates}}&block={{is_blocked}}&published={{tx_published}}", function(data) {
+        if (data.is_error) {
+            console.log(data.error_msg);
+        } 
+        if (data.updated) {
+            location.reload();
+        }
+    });
+    setTimeout(checkUpdates, 10000);
+}
 
 function block(txid) {
     $.post( "/block/" + txid, function( data ) {
@@ -132,6 +150,7 @@ async function copy_tx() {
 async function copy_url() {
     await navigator.clipboard.writeText(window.location.href);
 }
+
 
 </script>
 {{/if}}

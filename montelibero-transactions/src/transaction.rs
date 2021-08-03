@@ -19,7 +19,8 @@ pub struct MtlTransaction(TransactionV1Envelope);
 pub fn is_mtl_account(acc_id: &MuxedAccount) -> Result<bool> {
     let mtl_foundation = MTL_FOUNDATION.as_bytes().into_muxed_account_id()?;
     let mtl_issuerer = MTL_ISSUERER.as_bytes().into_muxed_account_id()?;
-    Ok(*acc_id == mtl_foundation || *acc_id == mtl_issuerer)
+    let mtlcity_issuerer = MTLCITY_ISSUERER.as_bytes().into_muxed_account_id()?;
+    Ok(*acc_id == mtl_foundation || *acc_id == mtl_issuerer || *acc_id == mtlcity_issuerer)
 }
 
 pub fn guard_mtl_account(tx: &Transaction) -> Result<()> {
@@ -82,6 +83,9 @@ impl MtlTransaction {
         hasher.finalize().to_vec()
     }
 
+    pub fn fetch_source_account(&self) -> Result<AccountResponse> {
+        get_account(self.source_account()?)
+    }
 
     pub fn fetch_sequence_number(&self) -> Result<i64> {
         Ok(horizon_mainnet().fetch_next_sequence_number(self.source_account()?, FETCH_TIMEOUT)?)
@@ -128,7 +132,7 @@ impl MtlTransaction {
             return Err(MtlError::SequenceNumber);
         }
         self.guard_time_window()?;
-        let account = get_mtl_foundation()?;
+        let account = self.fetch_source_account()?;
         let signers: Vec<PublicKey> = get_mtl_signers(&account)?.iter().map(|s| s.0.clone()).collect();
         TransactionEnvelope::EnvelopeTypeTx(self.0.clone()).check_signatures(&PUBLIC_NETWORK, &signers)?;
         Ok(())

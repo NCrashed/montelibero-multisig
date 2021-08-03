@@ -120,7 +120,7 @@ async fn view_transaction(conn: TransactionsDb, cache: &State<Cache>, cookies: &
         let curr_tx = tx.current().0;
         match curr_tx.is_published() {
             Ok(true) => {
-                let account = get_mtl_foundation()?;
+                let account = curr_tx.fetch_source_account()?;
                 let signs = curr_tx.get_signed_keys(&account)?;
                 let hints: Vec<SignatureHint> = signs.iter().map(|s| s.0.get_signature_hint()).collect();
                 let tx_collected: i32 = signs.iter().map(|s| s.1).sum();
@@ -139,6 +139,7 @@ async fn view_transaction(conn: TransactionsDb, cache: &State<Cache>, cookies: &
                         tx_collected,
                         tx_signers: ViewSigner::collect(&account, &hints)?,
                         tx_published: true,
+                        tx_updates: tx.history.len(),
                     },
                 ))
             }
@@ -151,7 +152,7 @@ async fn view_transaction(conn: TransactionsDb, cache: &State<Cache>, cookies: &
                             cookies.remove(Cookie::new("is_blocker", ""));
                             is_blocker = false;
                         }
-                        let account = get_mtl_foundation()?;
+                        let account = curr_tx.fetch_source_account()?;
                         let signs = curr_tx.get_signed_keys(&account)?;
                         let hints: Vec<SignatureHint> = signs.iter().map(|s| s.0.get_signature_hint()).collect();
                         let tx_collected: i32 = signs.iter().map(|s| s.1).sum();
@@ -170,12 +171,14 @@ async fn view_transaction(conn: TransactionsDb, cache: &State<Cache>, cookies: &
                                 tx_collected,
                                 is_blocked,
                                 is_blocker,
-                                tx_signers: ViewSigner::collect(&account, &hints)?
+                                tx_signers: ViewSigner::collect(&account, &hints)?,
+                                tx_published: false,
+                                tx_updates: tx.history.len(),
                             },
                         ))
                     }
                     Err(e) => {
-                        let account = get_mtl_foundation()?;
+                        let account = curr_tx.fetch_source_account()?;
                         let signs = curr_tx.get_signed_keys(&account)?;
                         let hints: Vec<SignatureHint> = signs.iter().map(|s| s.0.get_signature_hint()).collect();
                         let tx_collected: i32 = signs.iter().map(|s| s.1).sum();
@@ -194,7 +197,9 @@ async fn view_transaction(conn: TransactionsDb, cache: &State<Cache>, cookies: &
                                 tx_collected,
                                 tx_signers: ViewSigner::collect(&account, &hints)?,
                                 tx_invalid: true,
+                                tx_published: false,
                                 tx_invalid_msg: format!("{}", e),
+                                tx_updates: tx.history.len(),
                             },
                         ))
                     }
@@ -388,6 +393,48 @@ async fn update_transaction(conn: TransactionsDb, cache: &State<Cache>, tx: Form
     }
 }
 
+#[derive(Debug, Error)]
+pub enum CheckError {
+    #[error("Failed to decode transaction ID")]
+    TransactionId(#[from] hex::FromHexError),
+    #[error("Failed to load transaction: {0}")]
+    TransactionLoad(#[from] database::TxLoadError),
+    #[error("{0}")]
+    MtlError(#[from] MtlError),
+}
+
+#[derive(Serialize)]
+pub struct CheckResult {
+    pub updated: bool,
+    pub is_error: bool,
+    pub error_msg: Option<String>,
+}
+
+#[get("/check/update/<txid>?<updates>&<block>&<published>")]
+async fn check_update_transaction(conn: TransactionsDb, cache: &State<Cache>, txid: String, updates: u32, block: bool, published: bool) -> Json<CheckResult> {
+    
+    async fn check(conn: TransactionsDb, cache: &State<Cache>, txid: String, updates: u32, block: bool, published: bool) -> Result<bool, CheckError> {
+        let txid = hex::decode(&txid)?;
+        let meta = get_transaction(&conn, txid.clone()).await?;
+        let is_blocked = cache.is_blocked(&txid);
+        let is_published = meta.current().0.is_published().unwrap_or(false);
+        Ok(block != is_blocked || updates != meta.history.len() as u32 || published != is_published)
+    }
+
+    match check(conn, cache, txid, updates, block, published).await {
+        Err(e) => Json(CheckResult {
+            updated: false,
+            is_error: true, 
+            error_msg: Some(format!("{}", e)),
+        }),
+        Ok(updated) => Json(CheckResult {
+            updated,
+            is_error: false, 
+            error_msg: None,
+        }),
+    }
+}
+
 async fn run_migrations(rocket: Rocket<Build>) -> Rocket<Build> {
     embed_migrations!();
 
@@ -415,6 +462,7 @@ fn rocket() -> _ {
                 block_transaction,
                 unblock_transaction,
                 update_transaction,
+                check_update_transaction,
             ],
         )
         .manage(Cache::new())
