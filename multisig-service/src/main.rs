@@ -367,6 +367,10 @@ pub enum UpdateError {
     TransactionId(#[from] hex::FromHexError),
     #[error("Failed to load transaction: {0}")]
     TransactionLoad(#[from] database::TxLoadError),
+    #[error("Update transaction is empty")]
+    TransactionEmpty,
+    #[error("Update contains no new signatures")]
+    TransactionNotChanged,
     #[error("{0}")]
     MtlError(#[from] MtlError),
     #[error("Database error: {0}")]
@@ -389,10 +393,16 @@ async fn update_transaction(conn: TransactionsDb, cache: &State<Cache>, tx: Form
     }
 
     async fn update(conn: TransactionsDb, cache: &State<Cache>, tx: Form<UpdateTx>) -> Result<MtlTransaction, UpdateError> {
+        if tx.tx_body.len() == 0 {
+            return Err(UpdateError::TransactionEmpty);
+        }
         let mtx = validate_mtl_tx(&tx.tx_body)?;
         let txid = mtx.txid();
         let old_tx = get_transaction(&conn, txid.clone()).await?;
         old_tx.current().0.validate_update(&mtx)?;
+        if mtx.into_bytes() == old_tx.current().0.into_bytes() {
+            return Err(UpdateError::TransactionNotChanged);
+        }
         store_transaction_update(&conn, mtx.clone()).await?; 
         cache.unblock(&txid);
         Ok(mtx)
