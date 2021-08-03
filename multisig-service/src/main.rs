@@ -20,7 +20,7 @@ use rocket::fs::{relative, FileServer};
 use rocket::response::Redirect;
 use rocket::{Build, Rocket, State};
 use rocket::http::{CookieJar, Cookie};
-use rocket::serde::{Serialize, json::Json};
+use rocket::serde::{Deserialize, Serialize, json::Json};
 use std::sync::{Arc, Mutex};
 use std::collections::HashMap;
 use chrono::{NaiveDateTime, Utc, Duration};
@@ -463,10 +463,21 @@ async fn run_migrations(rocket: Rocket<Build>) -> Rocket<Build> {
     rocket
 }
 
+#[derive(Deserialize)]
+struct Config {
+    statics: Option<String>,
+}
+
+
 #[launch]
 fn rocket() -> _ {
-    rocket::build()
-        .mount("/", FileServer::from(relative!("static")))
+    let builder = rocket::build();
+    let figment = builder.figment();
+    let config: Config = figment.extract().expect("config");
+    
+    let statics = config.statics.unwrap_or(relative!("static").to_owned());
+    builder
+        .mount("/", FileServer::from(&statics))
         .mount(
             "/",
             routes![

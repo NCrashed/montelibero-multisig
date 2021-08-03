@@ -1,2 +1,5 @@
+[default]
+statics = "./static"
+
 [global.databases]
 transactions = { url = "./database.sqlite" }
