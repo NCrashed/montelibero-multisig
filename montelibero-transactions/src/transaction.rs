@@ -31,7 +31,7 @@ pub fn guard_mtl_account(tx: &Transaction) -> Result<()> {
 }
 
 pub fn guard_fee(tx: &Transaction) -> Result<()> {
-    if tx.fee != BASE_FEE {
+    if tx.fee < MIN_FEE || tx.fee > MAX_FEE {
         return Err(MtlError::NonStandardFee);
     }
     Ok(())
