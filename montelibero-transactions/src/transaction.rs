@@ -135,6 +135,20 @@ impl MtlTransaction {
         let account = self.fetch_source_account()?;
         let signers: Vec<PublicKey> = get_mtl_signers(&account)?.iter().map(|s| s.0.clone()).collect();
         TransactionEnvelope::EnvelopeTypeTx(self.0.clone()).check_signatures(&PUBLIC_NETWORK, &signers)?;
+        self.guard_excess_signatures(&account)?;
+        Ok(())
+    }
+
+    /// Check that the transaction has just enough number of signatures to sign
+    pub fn guard_excess_signatures(&self, account: &AccountResponse) -> Result<()> {
+        let required = get_required_weight(account) as i32;
+        let mut accum: i32 = 0;
+        for (_, w) in self.get_signed_keys(&account)? {
+            if accum >= required && accum+w >= required {
+                return Err(MtlError::SignaturesExcess);
+            }
+            accum += w;
+        }
         Ok(())
     }
 
@@ -181,6 +195,8 @@ impl MtlTransaction {
                 return Err(MtlError::UpdateSignatureRemoved);
             }
         }
+        let account = update.fetch_source_account()?;
+        update.guard_excess_signatures(&account)?;
         Ok(())
     }
 }

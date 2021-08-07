@@ -97,8 +97,12 @@
 
 <script>
 window.onload = async function(){
-    const queryOpts = { name: 'clipboard-read', allowWithoutGesture: false };
-    const permissionStatus = await navigator.permissions.query(queryOpts);
+    try {
+        const queryOpts = { name: 'clipboard-read', allowWithoutGesture: false };
+        const permissionStatus = await navigator.permissions.query(queryOpts);
+    } catch(e) {
+        console.log("Failed to requrest clipboard premission: ", e);
+    }
 
     let url = "https://laboratory.stellar.org/#xdr-viewer?type=TransactionEnvelope&network=public&input=" + encodeURIComponent(document.querySelector(".tx-body").innerText);
     $("#laboratory-url").attr("href", url);

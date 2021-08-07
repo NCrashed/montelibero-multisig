@@ -24,8 +24,8 @@ pub enum MtlError {
     UpdateContentChanged,
     #[error("Transaction update removes signatures")]
     UpdateSignatureRemoved,
-    #[error("Transaction update adds too much signatures")]
-    UpdateSignatureExcess,
+    #[error("Transaction has too much signatures")]
+    SignaturesExcess,
     #[error("Failed to request from Horizon server: {0}")]
     FetchError(#[from] substrate_stellar_sdk::horizon::FetchError),
 }

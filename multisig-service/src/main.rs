@@ -120,6 +120,12 @@ async fn view_transaction(conn: TransactionsDb, cache: &State<Cache>, cookies: &
         let curr_tx = tx.current().0;
         match curr_tx.is_published() {
             Ok(true) => {
+                let is_blocked = cache.is_blocked(&txid);
+                let mut is_blocker = cookies.get("is_blocker").is_some();
+                if !is_blocked && is_blocker {
+                    cookies.remove(Cookie::new("is_blocker", ""));
+                    is_blocker = false;
+                }
                 let account = curr_tx.fetch_source_account()?;
                 let signs = curr_tx.get_signed_keys(&account)?;
                 let hints: Vec<SignatureHint> = signs.iter().map(|s| s.0.get_signature_hint()).collect();
@@ -137,6 +143,8 @@ async fn view_transaction(conn: TransactionsDb, cache: &State<Cache>, cookies: &
                         tx_last: curr_tx.into_encoding(),
                         tx_required: get_required_weight(&account),
                         tx_collected,
+                        is_blocked,
+                        is_blocker,
                         tx_signers: ViewSigner::collect(&account, &hints)?,
                         tx_published: true,
                         tx_updates: tx.history.len(),
@@ -178,6 +186,12 @@ async fn view_transaction(conn: TransactionsDb, cache: &State<Cache>, cookies: &
                         ))
                     }
                     Err(e) => {
+                        let is_blocked = cache.is_blocked(&txid);
+                        let mut is_blocker = cookies.get("is_blocker").is_some();
+                        if !is_blocked && is_blocker {
+                            cookies.remove(Cookie::new("is_blocker", ""));
+                            is_blocker = false;
+                        }
                         let account = curr_tx.fetch_source_account()?;
                         let signs = curr_tx.get_signed_keys(&account)?;
                         let hints: Vec<SignatureHint> = signs.iter().map(|s| s.0.get_signature_hint()).collect();
@@ -196,6 +210,8 @@ async fn view_transaction(conn: TransactionsDb, cache: &State<Cache>, cookies: &
                                 tx_required: get_required_weight(&account),
                                 tx_collected,
                                 tx_signers: ViewSigner::collect(&account, &hints)?,
+                                is_blocked,
+                                is_blocker,
                                 tx_invalid: true,
                                 tx_published: false,
                                 tx_invalid_msg: format!("{}", e),
