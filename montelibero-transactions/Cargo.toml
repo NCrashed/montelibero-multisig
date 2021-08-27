@@ -9,10 +9,10 @@ edition = "2018"
 thiserror = "1.0.26"
 sha2 = "0.9.5"
 hex-literal = "0.3.3"
-substrate-stellar-sdk = { git = "https://github.com/ncrashed/substrate-stellar-sdk", rev = "10b3e41564e31a3397654a51a7da53bda911b467", features = [ "offchain", "all-types" ] }
+substrate-stellar-sdk = { git = "https://github.com/ncrashed/substrate-stellar-sdk", rev = "80637af3cf2a7283e67c99543701a6acb75cc87d", features = [ "offchain", "all-types" ] }
 
 # [dependencies.substrate-stellar-sdk]
 # # path = "../../substrate-stellar-sdk"
 # git = "https://github.com/ncrashed/substrate-stellar-sdk"
-# revision = "10b3e41564e31a3397654a51a7da53bda911b467"
+# revision = "80637af3cf2a7283e67c99543701a6acb75cc87d"
 # features = [ "offchain", "all-types" ]

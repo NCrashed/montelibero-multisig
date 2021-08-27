@@ -46,8 +46,11 @@
         <legend>Signatures</legend>
         {{#each tx_signers}}
             <div class="row signer">
-                <div class="col-10">
+                <div class="col-8">
                     <a class="signer-key" href="https://stellar.expert/explorer/public/account/{{this.key}}">{{this.key}}</a>
+                </div>
+                <div class="col-2">
+                    <a class="singer-telegram" href="https://t.me/{{this.telegram}}">{{this.telegram}}</a>
                 </div>
                 <div class="col-1">
                     <span class="singer-weight">{{this.weight}}</span>

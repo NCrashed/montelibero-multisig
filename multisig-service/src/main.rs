@@ -79,16 +79,19 @@ pub struct ViewSigner {
     pub key: String, 
     pub weight: i32,
     pub signed: bool, 
+    pub telegram: Option<String>,
 }
 
 impl ViewSigner {
     pub fn collect(account: &AccountResponse, signs: &[SignatureHint]) -> Result<Vec<Self>, MtlError> {
         let mut res = Vec::new();
+        let telegram_map = get_telegram_mapping();
         for s in get_mtl_signers(account)? {
             res.push(ViewSigner {
                 key: std::str::from_utf8(&s.0.to_encoding()).unwrap().to_owned(),
                 weight: s.1, 
                 signed: signs.contains(&s.0.get_signature_hint()),
+                telegram: telegram_map.get(&s.0).cloned(),
             })
         }
         Ok(res)
