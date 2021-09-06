@@ -87,13 +87,18 @@ impl ViewSigner {
         let mut res = Vec::new();
         let telegram_map = get_telegram_mapping();
         for s in get_mtl_signers(account)? {
-            res.push(ViewSigner {
-                key: std::str::from_utf8(&s.0.to_encoding()).unwrap().to_owned(),
-                weight: s.1, 
-                signed: signs.contains(&s.0.get_signature_hint()),
-                telegram: telegram_map.get(&s.0).cloned(),
-            })
+            let signer_weight = s.1;
+            let signer_key = s.0;
+            if signer_weight > 0 {
+                res.push(ViewSigner {
+                    key: std::str::from_utf8(&signer_key.to_encoding()).unwrap().to_owned(),
+                    weight: signer_weight, 
+                    signed: signs.contains(&signer_key.get_signature_hint()),
+                    telegram: telegram_map.get(&signer_key).cloned(),
+                })
+            }
         }
+        res.sort_by(|a, b| b.weight.cmp(&a.weight));
         Ok(res)
     }
 }
