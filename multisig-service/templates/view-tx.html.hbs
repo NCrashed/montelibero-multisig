@@ -63,6 +63,18 @@
     </fieldset>
 </div>
 
+<h5>Those who not yet signed:</h5>
+<div class="row ignorants">
+    <div class="col-2">
+        <button class="button outline" onclick="copy_ignorants()">Copy them</button>
+    </div>
+    <div class="col-10 ignorants-nicks">
+        {{#each tx_ignorants}}
+        <a class="singer-telegram" href="https://t.me/{{this}}">@{{this}}</a>
+        {{/each}}
+    </div>
+</div>
+
 {{#if tx_published}}
 
 {{else}}
@@ -158,6 +170,9 @@ async function copy_url() {
     await navigator.clipboard.writeText(window.location.href);
 }
 
+async function copy_ignorants() {
+    await navigator.clipboard.writeText(document.querySelector(".ignorants-nicks").innerText);
+}
 
 </script>
 {{/if}}

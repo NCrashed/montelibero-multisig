@@ -126,106 +126,57 @@ async fn view_transaction(conn: TransactionsDb, cache: &State<Cache>, cookies: &
         };
         let tx = get_transaction(&conn, txid.clone()).await?;
         let curr_tx = tx.current().0;
+
+        fn render_tx(cache: &State<Cache>, cookies: &CookieJar<'_>, txid: &[u8], tx: &MtlTxMeta, published: bool, invalid: Option<String>) -> Result<Template, ViewError> {
+            let curr_tx = tx.current().0;
+            let is_blocked = cache.is_blocked(&txid);
+            let mut is_blocker = cookies.get("is_blocker").is_some();
+            if !is_blocked && is_blocker {
+                cookies.remove(Cookie::new("is_blocker", ""));
+                is_blocker = false;
+            }
+            let account = curr_tx.fetch_source_account()?;
+            let signs = curr_tx.get_signed_keys(&account)?;
+            let hints: Vec<SignatureHint> = signs.iter().map(|s| s.0.get_signature_hint()).collect();
+            let tx_collected: i32 = signs.iter().map(|s| s.1).sum();
+            let tx_signers = ViewSigner::collect(&account, &hints)?;
+            let tx_ignorants: Vec<String> = tx_signers.iter().filter(|s| !s.signed && s.telegram.is_some()).map(|s| s.telegram.clone().unwrap() ).collect();
+            Ok(Template::render(
+                "view-tx",
+                &context! {
+                    title: "Montelibero multisignature service",
+                    parent: "base",
+                    menu_view_tx: true,
+                    is_error: false, 
+                    tx_id: hex::encode(txid.clone()),  
+                    tx_title: tx.title.clone(), 
+                    tx_description: tx.description.clone(),
+                    tx_last: curr_tx.into_encoding(),
+                    tx_required: get_required_weight(&account),
+                    tx_collected,
+                    is_blocked,
+                    is_blocker,
+                    tx_signers,
+                    tx_ignorants,
+                    tx_published: published,
+                    tx_updates: tx.history.len(),
+                    tx_invalid: invalid.is_some(),
+                    tx_invalid_msg: invalid,
+                },
+            ))
+        }
+
         match curr_tx.is_published() {
             Ok(true) => {
-                let is_blocked = cache.is_blocked(&txid);
-                let mut is_blocker = cookies.get("is_blocker").is_some();
-                if !is_blocked && is_blocker {
-                    cookies.remove(Cookie::new("is_blocker", ""));
-                    is_blocker = false;
-                }
-                let account = curr_tx.fetch_source_account()?;
-                let signs = curr_tx.get_signed_keys(&account)?;
-                let hints: Vec<SignatureHint> = signs.iter().map(|s| s.0.get_signature_hint()).collect();
-                let tx_collected: i32 = signs.iter().map(|s| s.1).sum();
-                Ok(Template::render(
-                    "view-tx",
-                    &context! {
-                        title: "Montelibero multisignature service",
-                        parent: "base",
-                        menu_view_tx: true,
-                        is_error: false, 
-                        tx_id: hex::encode(txid.clone()),  
-                        tx_title: tx.title, 
-                        tx_description: tx.description,
-                        tx_last: curr_tx.into_encoding(),
-                        tx_required: get_required_weight(&account),
-                        tx_collected,
-                        is_blocked,
-                        is_blocker,
-                        tx_signers: ViewSigner::collect(&account, &hints)?,
-                        tx_published: true,
-                        tx_updates: tx.history.len(),
-                    },
-                ))
+                render_tx(cache, cookies, &txid, &tx, true, None)
             }
             _ => {
                 match curr_tx.validate_create() {
                     Ok(_) => {
-                        let is_blocked = cache.is_blocked(&txid);
-                        let mut is_blocker = cookies.get("is_blocker").is_some();
-                        if !is_blocked && is_blocker {
-                            cookies.remove(Cookie::new("is_blocker", ""));
-                            is_blocker = false;
-                        }
-                        let account = curr_tx.fetch_source_account()?;
-                        let signs = curr_tx.get_signed_keys(&account)?;
-                        let hints: Vec<SignatureHint> = signs.iter().map(|s| s.0.get_signature_hint()).collect();
-                        let tx_collected: i32 = signs.iter().map(|s| s.1).sum();
-                        Ok(Template::render(
-                            "view-tx",
-                            &context! {
-                                title: "Montelibero multisignature service",
-                                parent: "base",
-                                menu_view_tx: true,
-                                is_error: false, 
-                                tx_id: hex::encode(txid.clone()),  
-                                tx_title: tx.title, 
-                                tx_description: tx.description,
-                                tx_last: curr_tx.into_encoding(),
-                                tx_required: get_required_weight(&account),
-                                tx_collected,
-                                is_blocked,
-                                is_blocker,
-                                tx_signers: ViewSigner::collect(&account, &hints)?,
-                                tx_published: false,
-                                tx_updates: tx.history.len(),
-                            },
-                        ))
+                        render_tx(cache, cookies, &txid, &tx, false, None)
                     }
                     Err(e) => {
-                        let is_blocked = cache.is_blocked(&txid);
-                        let mut is_blocker = cookies.get("is_blocker").is_some();
-                        if !is_blocked && is_blocker {
-                            cookies.remove(Cookie::new("is_blocker", ""));
-                            is_blocker = false;
-                        }
-                        let account = curr_tx.fetch_source_account()?;
-                        let signs = curr_tx.get_signed_keys(&account)?;
-                        let hints: Vec<SignatureHint> = signs.iter().map(|s| s.0.get_signature_hint()).collect();
-                        let tx_collected: i32 = signs.iter().map(|s| s.1).sum();
-                        Ok(Template::render(
-                            "view-tx",
-                            &context! {
-                                title: "Montelibero multisignature service",
-                                parent: "base",
-                                menu_view_tx: true,
-                                is_error: false, 
-                                tx_id: hex::encode(txid.clone()),  
-                                tx_title: tx.title, 
-                                tx_description: tx.description,
-                                tx_last: curr_tx.into_encoding(),
-                                tx_required: get_required_weight(&account),
-                                tx_collected,
-                                tx_signers: ViewSigner::collect(&account, &hints)?,
-                                is_blocked,
-                                is_blocker,
-                                tx_invalid: true,
-                                tx_published: false,
-                                tx_invalid_msg: format!("{}", e),
-                                tx_updates: tx.history.len(),
-                            },
-                        ))
+                        render_tx(cache, cookies, &txid, &tx, false, Some(format!("{}", e)))
                     }
                 }
             }
