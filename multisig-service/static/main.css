@@ -49,3 +49,13 @@
 .ignorants {
     margin-bottom: 30px;
 }
+
+.history-tittle {
+    margin-top: 50px;
+}
+
+.history-header {
+    font-weight: bold;
+    font-size: 14pt;
+    color:forestgreen;
+}

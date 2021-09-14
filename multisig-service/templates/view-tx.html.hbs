@@ -110,6 +110,32 @@
     </div>
 </div>
 
+<h2 class="history-tittle">Transaction history</h5>
+<div class="row">
+    <div class="col-1">
+        <span class="history-header">Number</span>
+    </div>
+    <div class="col-2">
+        <span class="history-header">Time</span>
+    </div>
+    <div class="col-9">
+        <span class="history-header">Transaction body</span>
+    </div>
+</div>
+{{#each tx_history}}
+<div class="row">
+    <div class="col-1">
+        {{this.number}}
+    </div>
+    <div class="col-2">
+        {{this.date}}
+    </div>
+    <div class="col-9">
+        <span class="tx-body">{{this.tx}}</span>
+    </div>
+</div>
+{{/each}}
+
 <script>
 window.onload = async function(){
     try {

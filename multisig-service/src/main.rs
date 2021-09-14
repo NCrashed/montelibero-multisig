@@ -103,6 +103,27 @@ impl ViewSigner {
     }
 }
 
+#[derive(Serialize)]
+pub struct TxHistoryItem {
+    pub number: u32,
+    pub date: String,
+    pub tx: String,
+}
+
+impl TxHistoryItem {
+    pub fn collect(tx: &MtlTxMeta) -> Vec<Self> {
+        let mut res = Vec::new();
+        for (i, (tx, t)) in tx.history.iter().enumerate() {
+            res.push(TxHistoryItem{
+                number: i as u32,
+                date: t.format("%Y-%m-%d %H:%M:%S").to_string(),
+                tx: tx.into_encoding(),
+            })
+        }
+        res
+    }
+}
+
 #[get("/view?<tid>")]
 async fn view_transaction(conn: TransactionsDb, cache: &State<Cache>, cookies: &CookieJar<'_>, tid: Option<String>) -> Template {
 
@@ -141,6 +162,7 @@ async fn view_transaction(conn: TransactionsDb, cache: &State<Cache>, cookies: &
             let tx_collected: i32 = signs.iter().map(|s| s.1).sum();
             let tx_signers = ViewSigner::collect(&account, &hints)?;
             let tx_ignorants: Vec<String> = tx_signers.iter().filter(|s| !s.signed && s.telegram.is_some()).map(|s| s.telegram.clone().unwrap() ).collect();
+            let tx_history = TxHistoryItem::collect(&tx);
             Ok(Template::render(
                 "view-tx",
                 &context! {
@@ -162,6 +184,7 @@ async fn view_transaction(conn: TransactionsDb, cache: &State<Cache>, cookies: &
                     tx_updates: tx.history.len(),
                     tx_invalid: invalid.is_some(),
                     tx_invalid_msg: invalid,
+                    tx_history,
                 },
             ))
         }
