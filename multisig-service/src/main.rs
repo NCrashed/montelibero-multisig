@@ -113,13 +113,15 @@ pub struct TxHistoryItem {
 impl TxHistoryItem {
     pub fn collect(tx: &MtlTxMeta) -> Vec<Self> {
         let mut res = Vec::new();
+        let n = tx.history.len();
         for (i, (tx, t)) in tx.history.iter().enumerate() {
             res.push(TxHistoryItem{
-                number: i as u32,
+                number: (n - i) as u32,
                 date: t.format("%Y-%m-%d %H:%M:%S").to_string(),
                 tx: tx.into_encoding(),
             })
         }
+        res.sort_by(|a, b| a.number.cmp(&b.number));
         res
     }
 }
