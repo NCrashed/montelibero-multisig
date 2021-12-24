@@ -20,7 +20,8 @@ pub fn is_mtl_account(acc_id: &MuxedAccount) -> Result<bool> {
     let mtl_foundation = MTL_FOUNDATION.as_bytes().into_muxed_account_id()?;
     let mtl_issuerer = MTL_ISSUERER.as_bytes().into_muxed_account_id()?;
     let mtlcity_issuerer = MTLCITY_ISSUERER.as_bytes().into_muxed_account_id()?;
-    Ok(*acc_id == mtl_foundation || *acc_id == mtl_issuerer || *acc_id == mtlcity_issuerer)
+    let btc_treasury = BTC_TREASURY.as_bytes().into_muxed_account_id()?;
+    Ok(*acc_id == mtl_foundation || *acc_id == mtl_issuerer || *acc_id == mtlcity_issuerer || *acc_id == btc_treasury)
 }
 
 pub fn guard_mtl_account(tx: &Transaction) -> Result<()> {
@@ -90,7 +91,7 @@ impl MtlTransaction {
     pub fn fetch_sequence_number(&self) -> Result<i64> {
         Ok(horizon_mainnet().fetch_next_sequence_number(self.source_account()?, FETCH_TIMEOUT)?)
     }
-    
+
     pub fn source_account(&self) -> Result<AccountId> {
         match self.0.tx.source_account {
             MuxedAccount::KeyTypeEd25519(k) => Ok(AccountId::PublicKeyTypeEd25519(k)),
@@ -106,7 +107,7 @@ impl MtlTransaction {
                 if bounds.min_time == 0 && bounds.max_time > 0 {
                     if bounds.max_time < current + SIGNING_TIME_WINDOW {
                         return false;
-                    } 
+                    }
                 } else if bounds.max_time > 0 {
                     let adjust_min = u64::max(current, bounds.min_time);
                     if bounds.max_time < adjust_min || adjust_min + SIGNING_TIME_WINDOW > bounds.max_time {
