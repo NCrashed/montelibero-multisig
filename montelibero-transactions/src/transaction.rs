@@ -1,17 +1,17 @@
+use super::account::*;
 use super::constants::*;
 use super::error::*;
-use super::account::*;
 use sha2::{Digest, Sha256};
+use std::time::{SystemTime, UNIX_EPOCH};
 use substrate_stellar_sdk::{
-    Transaction,
     network::PUBLIC_NETWORK,
     types::{
-        TransactionSignaturePayload, TransactionSignaturePayloadTaggedTransaction,
-        TransactionV1Envelope, TimePoint, SignatureHint
+        SignatureHint, TimePoint, TransactionSignaturePayload,
+        TransactionSignaturePayloadTaggedTransaction, TransactionV1Envelope,
     },
-    PublicKey, IntoHash, IntoMuxedAccountId, MuxedAccount, TransactionEnvelope, XdrCodec, AccountId
+    AccountId, IntoHash, IntoMuxedAccountId, MuxedAccount, PublicKey, Transaction,
+    TransactionEnvelope, XdrCodec,
 };
-use std::time::{SystemTime, UNIX_EPOCH};
 
 #[derive(Debug, Clone)]
 pub struct MtlTransaction(TransactionV1Envelope);
@@ -21,7 +21,12 @@ pub fn is_mtl_account(acc_id: &MuxedAccount) -> Result<bool> {
     let mtl_issuerer = MTL_ISSUERER.as_bytes().into_muxed_account_id()?;
     let mtlcity_issuerer = MTLCITY_ISSUERER.as_bytes().into_muxed_account_id()?;
     let btc_treasury = BTC_TREASURY.as_bytes().into_muxed_account_id()?;
-    Ok(*acc_id == mtl_foundation || *acc_id == mtl_issuerer || *acc_id == mtlcity_issuerer || *acc_id == btc_treasury)
+    let mtl_additional = MTL_ADDITIONAL_ACCOUNT.as_bytes().into_muxed_account_id()?;
+    Ok(*acc_id == mtl_foundation
+        || *acc_id == mtl_issuerer
+        || *acc_id == mtlcity_issuerer
+        || *acc_id == btc_treasury
+        || *acc_id == mtl_additional)
 }
 
 pub fn guard_mtl_account(tx: &Transaction) -> Result<()> {
@@ -95,7 +100,7 @@ impl MtlTransaction {
     pub fn source_account(&self) -> Result<AccountId> {
         match self.0.tx.source_account {
             MuxedAccount::KeyTypeEd25519(k) => Ok(AccountId::PublicKeyTypeEd25519(k)),
-            _ => Err(MtlError::WrongSourceAccount)
+            _ => Err(MtlError::WrongSourceAccount),
         }
     }
 
@@ -110,7 +115,9 @@ impl MtlTransaction {
                     }
                 } else if bounds.max_time > 0 {
                     let adjust_min = u64::max(current, bounds.min_time);
-                    if bounds.max_time < adjust_min || adjust_min + SIGNING_TIME_WINDOW > bounds.max_time {
+                    if bounds.max_time < adjust_min
+                        || adjust_min + SIGNING_TIME_WINDOW > bounds.max_time
+                    {
                         return false;
                     }
                 }
@@ -134,8 +141,12 @@ impl MtlTransaction {
         }
         self.guard_time_window()?;
         let account = self.fetch_source_account()?;
-        let signers: Vec<PublicKey> = get_mtl_signers(&account)?.iter().map(|s| s.0.clone()).collect();
-        TransactionEnvelope::EnvelopeTypeTx(self.0.clone()).check_signatures(&PUBLIC_NETWORK, &signers)?;
+        let signers: Vec<PublicKey> = get_mtl_signers(&account)?
+            .iter()
+            .map(|s| s.0.clone())
+            .collect();
+        TransactionEnvelope::EnvelopeTypeTx(self.0.clone())
+            .check_signatures(&PUBLIC_NETWORK, &signers)?;
         self.guard_excess_signatures(&account)?;
         Ok(())
     }
@@ -145,7 +156,7 @@ impl MtlTransaction {
         let required = get_required_weight(account) as i32;
         let mut accum: i32 = 0;
         for (_, w) in self.get_signed_keys(&account)? {
-            if accum >= required && accum+w >= required {
+            if accum >= required && accum + w >= required {
                 return Err(MtlError::SignaturesExcess);
             }
             accum += w;
@@ -158,7 +169,9 @@ impl MtlTransaction {
     }
 
     pub fn into_encoding(&self) -> String {
-        std::str::from_utf8(&TransactionEnvelope::EnvelopeTypeTx(self.0.clone()).to_base64_xdr()).unwrap().to_owned()
+        std::str::from_utf8(&TransactionEnvelope::EnvelopeTypeTx(self.0.clone()).to_base64_xdr())
+            .unwrap()
+            .to_owned()
     }
 
     pub fn from_bytes<T: AsRef<[u8]>>(bytes: &T) -> Result<Self> {
@@ -176,9 +189,14 @@ impl MtlTransaction {
 
     pub fn get_signed_keys(&self, account: &AccountResponse) -> Result<Vec<(PublicKey, i32)>> {
         let signers = get_mtl_signers(account)?;
-        let signs: Vec<SignatureHint> = self.0.signatures.get_vec().iter().map(|s| s.hint).collect();
+        let signs: Vec<SignatureHint> =
+            self.0.signatures.get_vec().iter().map(|s| s.hint).collect();
 
-        Ok(signers.iter().filter(|(pk, _)| signs.contains(&pk.get_signature_hint())).cloned().collect())
+        Ok(signers
+            .iter()
+            .filter(|(pk, _)| signs.contains(&pk.get_signature_hint()))
+            .cloned()
+            .collect())
     }
 
     pub fn is_published(&self) -> Result<bool> {
