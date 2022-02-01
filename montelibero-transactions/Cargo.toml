@@ -10,6 +10,8 @@ thiserror = "1.0.26"
 sha2 = "0.9.5"
 hex-literal = "0.3.3"
 substrate-stellar-sdk = { git = "https://github.com/ncrashed/substrate-stellar-sdk", rev = "80637af3cf2a7283e67c99543701a6acb75cc87d", features = [ "offchain", "all-types" ] }
+serde = { version = "1.0.136", features = ["derive"] }
+serde_json = "1.0.78"
 
 # [dependencies.substrate-stellar-sdk]
 # # path = "../../substrate-stellar-sdk"

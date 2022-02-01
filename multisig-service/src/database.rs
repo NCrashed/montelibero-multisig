@@ -1,16 +1,16 @@
-use diesel::{self, prelude::*, result::QueryResult};
-use montelibero_transactions::transaction::MtlTransaction;
-use montelibero_transactions::error::MtlError;
-use rocket::serde::Serialize;
 use chrono::NaiveDateTime;
+use diesel::{self, prelude::*, result::QueryResult};
+use montelibero_transactions::error::MtlError;
+use montelibero_transactions::transaction::MtlTransaction;
+use rocket::serde::Serialize;
 use thiserror::Error;
 
 #[database("transactions")]
 pub struct TransactionsDb(diesel::SqliteConnection);
 
+use super::schema::transaction_updates::dsl::transaction_updates as all_transaction_updates;
+use super::schema::transactions::dsl::transactions as all_transactions;
 use super::schema::*;
-use super::schema::transactions::dsl::{transactions as all_transactions};
-use super::schema::transaction_updates::dsl::{transaction_updates as all_transaction_updates};
 
 #[derive(Serialize, Queryable, Insertable, Debug, Clone)]
 #[serde(crate = "rocket::serde")]
@@ -46,7 +46,7 @@ pub async fn store_transaction(
     conn: &TransactionsDb,
     tx: MtlTransaction,
     title: String,
-    description: String
+    description: String,
 ) -> QueryResult<()> {
     conn.run(move |c| {
         let t = Transaction {
@@ -56,7 +56,9 @@ pub async fn store_transaction(
             body: tx.into_bytes(),
             created: chrono::Utc::now().naive_utc(),
         };
-        diesel::insert_into(transactions::table).values(&t).execute(c)
+        diesel::insert_into(transactions::table)
+            .values(&t)
+            .execute(c)
     })
     .await?;
     Ok(())
@@ -72,14 +74,16 @@ pub async fn store_transaction_update(
             body: tx.into_bytes(),
             updated: chrono::Utc::now().naive_utc(),
         };
-        diesel::insert_into(transaction_updates::table).values(&t).execute(c)
+        diesel::insert_into(transaction_updates::table)
+            .values(&t)
+            .execute(c)
     })
     .await?;
     Ok(())
 }
 
 pub struct MtlTxMeta {
-    pub title: String, 
+    pub title: String,
     pub description: String,
     pub history: Vec<(MtlTransaction, NaiveDateTime)>,
 }
@@ -104,22 +108,28 @@ pub async fn get_transaction(
 ) -> Result<MtlTxMeta, TxLoadError> {
     conn.run(move |c| {
         let tid = hex::encode(txid);
-        let tx_created = all_transactions.find(tid.clone()).get_result::<Transaction>(c)?;
+        let tx_created = all_transactions
+            .find(tid.clone())
+            .get_result::<Transaction>(c)?;
         let updates = all_transaction_updates
             .order(transaction_updates::updated.desc())
             .filter(transaction_updates::txid.eq(tid))
             .load::<TransactionUpdate>(c)?;
 
-        let mut history: Vec<(MtlTransaction, NaiveDateTime)> = Vec::new(); 
+        let mut history: Vec<(MtlTransaction, NaiveDateTime)> = Vec::new();
         for u in updates.iter() {
             history.push((MtlTransaction::from_bytes(&u.body)?, u.updated));
         }
-        history.push((MtlTransaction::from_bytes(&tx_created.body)?, tx_created.created));
+        history.push((
+            MtlTransaction::from_bytes(&tx_created.body)?,
+            tx_created.created,
+        ));
 
         Ok(MtlTxMeta {
             title: tx_created.title,
             description: tx_created.description,
             history: history,
         })
-    }).await
+    })
+    .await
 }

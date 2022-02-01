@@ -19,7 +19,4 @@ table! {
 
 joinable!(transaction_updates -> transactions (txid));
 
-allow_tables_to_appear_in_same_query!(
-    transaction_updates,
-    transactions,
-);
+allow_tables_to_appear_in_same_query!(transaction_updates, transactions,);

@@ -19,7 +19,7 @@ pub enum MtlError {
     #[error("Transaction has overdue sequence number")]
     SequenceNumber,
     #[error("Transaction has too little time window for signing")]
-    TooLittleTimeBound, 
+    TooLittleTimeBound,
     #[error("Transaction update changes it contents")]
     UpdateContentChanged,
     #[error("Transaction update removes signatures")]

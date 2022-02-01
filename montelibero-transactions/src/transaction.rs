@@ -53,12 +53,8 @@ pub fn parse_mtl_tx<T: AsRef<[u8]>>(raw_tx: &T) -> Result<MtlTransaction> {
             guard_fee(tx)?;
             Ok(MtlTransaction(envelope))
         }
-        TransactionEnvelope::EnvelopeTypeTxV0(_) => {
-            return Err(MtlError::DeprecatedTxVersion);
-        }
-        _ => {
-            return Err(MtlError::UnsupportedTx);
-        }
+        TransactionEnvelope::EnvelopeTypeTxV0(_) => Err(MtlError::DeprecatedTxVersion),
+        _ => Err(MtlError::UnsupportedTx),
     }
 }
 
@@ -155,7 +151,7 @@ impl MtlTransaction {
     pub fn guard_excess_signatures(&self, account: &AccountResponse) -> Result<()> {
         let required = get_required_weight(account) as i32;
         let mut accum: i32 = 0;
-        for (_, w) in self.get_signed_keys(&account)? {
+        for (_, w) in self.get_signed_keys(account)? {
             if accum >= required && accum + w >= required {
                 return Err(MtlError::SignaturesExcess);
             }
