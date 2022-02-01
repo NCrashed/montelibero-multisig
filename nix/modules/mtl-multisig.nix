@@ -43,6 +43,12 @@ in {
           Path to static files of webserver.
         '';
       };
+      users = mkOption {
+        type = types.str;
+        description = ''
+          Contents of file with user mapping
+        '';
+      };
       templates = mkOption {
         type = types.str;
         default = "${cfg.package}/share/templates";
@@ -56,6 +62,7 @@ in {
           [default]
           port=${toString cfg.port}
           statics="${cfg.statics}"
+          users="/etc/mtl-users.json"
           template_dir="${cfg.templates}"
 
           [global.databases]
@@ -75,6 +82,9 @@ in {
     ];
     environment.etc."mtl-multisig.toml" = {
       text = cfg.config; # we can use values of options for this service here
+    };
+    environment.etc."mtl-users.json" = {
+      text = cfg.users;
     };
     # Create systemd service
     systemd.services.mtl-multisig = {
