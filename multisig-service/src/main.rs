@@ -130,6 +130,7 @@ pub enum ViewError {
 #[derive(Serialize)]
 pub struct ViewSigner {
     pub key: String,
+    pub short_key: String,
     pub weight: i32,
     pub signed: bool,
     pub telegram: Option<String>,
@@ -151,10 +152,13 @@ impl ViewSigner {
             let signer_key = s.0;
             if signer_weight > 0 {
                 let singed_monthly = signs_map.get(&signer_key).copied().unwrap_or(0);
+                let key = std::str::from_utf8(&signer_key.to_encoding())
+                    .unwrap()
+                    .to_owned();
+                let short_key = format!("{}...{}", &key[0 .. 15], &key[key.len()-15 ..]);
                 res.push(ViewSigner {
-                    key: std::str::from_utf8(&signer_key.to_encoding())
-                        .unwrap()
-                        .to_owned(),
+                    key,
+                    short_key,
                     weight: signer_weight,
                     signed: signs.contains(&signer_key.get_signature_hint()),
                     telegram: telegram_map.get(&signer_key).cloned(),
