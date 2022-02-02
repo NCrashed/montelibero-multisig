@@ -128,8 +128,44 @@ pub async fn get_transaction(
         Ok(MtlTxMeta {
             title: tx_created.title,
             description: tx_created.description,
-            history: history,
+            history,
         })
+    })
+    .await
+}
+
+/// Loads all transaction from given time. Loads only last signed version.
+pub async fn get_transactions(
+    conn: &TransactionsDb,
+    from: NaiveDateTime,
+) -> Result<Vec<MtlTxMeta>, TxLoadError> {
+    conn.run(move |c| {
+        let txs = all_transactions
+            .filter(transactions::created.gt(from))
+            .get_results::<Transaction>(c)?;
+
+        let mut result = vec![];
+        for tx in txs {
+            let updates = all_transaction_updates
+                .order(transaction_updates::updated.desc())
+                .filter(transaction_updates::txid.eq(tx.id))
+                .limit(1)
+                .get_results::<TransactionUpdate>(c)?;
+
+            let mut history = vec![];
+            for u in updates {
+                history.push((MtlTransaction::from_bytes(&u.body)?, u.updated));
+            }
+            history.push((MtlTransaction::from_bytes(&tx.body)?, tx.created));
+
+            let meta = MtlTxMeta {
+                title: tx.title,
+                description: tx.description,
+                history,
+            };
+            result.push(meta);
+        }
+        Ok(result)
     })
     .await
 }

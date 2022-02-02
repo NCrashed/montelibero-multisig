@@ -1449,7 +1449,9 @@ dependencies = [
  "rocket_dyn_templates",
  "rocket_sync_db_pools",
  "serde",
+ "substrate-stellar-sdk",
  "thiserror",
+ "tokio",
 ]
 
 [[package]]
@@ -3072,6 +3074,7 @@ dependencies = [
  "mio 0.7.13",
  "num_cpus",
  "once_cell",
+ "parking_lot",
  "pin-project-lite",
  "signal-hook-registry",
  "tokio-macros",

@@ -44,19 +44,47 @@
 <div class="row singers">
     <fieldset class="signer" id="signatures">
         <legend>Signatures</legend>
+        <div class="row signer">
+            <div class="col-6">
+                <span class="signer-header">Public key</a>
+            </div>
+            <div class="col-2">
+                <span class="signer-header">Telegram</a>
+            </div>
+            <div class="col-2">
+                <span class="signer-header">Sings monthly</a>
+            </div>
+            <div class="col-1">
+                <span class="signer-header">Weight</span>
+            </div>
+            <div class="col-1">
+                <span class="signer-header">Did sign?</span>
+            </div>
+        </div>
         {{#each tx_signers}}
             <div class="row signer">
-                <div class="col-8">
+                <div class="col-6">
                     <a class="signer-key" href="https://stellar.expert/explorer/public/account/{{this.key}}">{{this.key}}</a>
                 </div>
                 <div class="col-2">
-                    <a class="singer-telegram" href="https://t.me/{{this.telegram}}">{{this.telegram}}</a>
+                    <a class="signer-telegram" href="https://t.me/{{this.telegram}}">{{this.telegram}}</a>
+                </div>
+                <div class="col-2">
+                    {{#if this.is_few_signs}}
+                        <span class="signer-recent-signs few-signs">{{this.singed_monthly}}</a>
+                    {{else}}
+                        {{#if this.is_moderate_signs}}
+                            <span class="signer-recent-signs moderate-signs">{{this.singed_monthly}}</a>
+                        {{else}}
+                            <span class="signer-recent-signs many-signs">{{this.singed_monthly}}</a>
+                        {{/if}}
+                    {{/if}}
                 </div>
                 <div class="col-1">
-                    <span class="singer-weight">{{this.weight}}</span>
+                    <span class="signer-weight">{{this.weight}}</span>
                 </div>
                 <div class="col-1">
-                    {{#if this.signed}}<span class="singer-signed">Signed</span>{{/if}}
+                    {{#if this.signed}}<span class="signer-signed">Signed</span>{{/if}}
                 </div>
             </div>
         {{/each}}
@@ -155,7 +183,7 @@ function checkUpdates() {
     $.get("/check/update/{{tx_id}}?updates={{tx_updates}}&block={{is_blocked}}&published={{tx_published}}", function(data) {
         if (data.is_error) {
             console.log(data.error_msg);
-        } 
+        }
         if (data.updated) {
             location.reload();
         }

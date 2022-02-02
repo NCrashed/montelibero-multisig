@@ -22,16 +22,19 @@ use rocket::serde::{json::Json, Deserialize, Serialize};
 use rocket::{Build, Rocket, State};
 use rocket_dyn_templates::{context, Template};
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use thiserror::Error;
+use tokio::sync::Mutex;
 
 use montelibero_transactions::account::*;
 use montelibero_transactions::error::MtlError;
 use montelibero_transactions::transaction::*;
 
+#[derive(Clone)]
 struct Cache {
     blocks: Arc<Mutex<HashMap<Vec<u8>, NaiveDateTime>>>,
     users: UsersMapping,
+    signs: Arc<Mutex<SignsMapping>>,
 }
 
 impl Cache {
@@ -39,27 +42,72 @@ impl Cache {
         Cache {
             blocks: Arc::new(Mutex::new(HashMap::new())),
             users,
+            signs: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
-    fn is_blocked(&self, tid: &[u8]) -> bool {
-        if let Some(t) = self.blocks.lock().unwrap().get(tid) {
+    async fn is_blocked(&self, tid: &[u8]) -> bool {
+        if let Some(t) = self.blocks.lock().await.get(tid) {
             *t > Utc::now().naive_utc()
         } else {
             false
         }
     }
 
-    fn block(&self, tid: &[u8], delay: Duration) {
+    async fn block(&self, tid: &[u8], delay: Duration) {
         self.blocks
             .lock()
-            .unwrap()
+            .await
             .insert(tid.to_owned(), Utc::now().naive_utc() + delay);
     }
 
-    fn unblock(&self, tid: &[u8]) {
-        self.blocks.lock().unwrap().remove(tid);
+    async fn unblock(&self, tid: &[u8]) {
+        self.blocks.lock().await.remove(tid);
     }
+
+    async fn update_signs(&self, conn: &TransactionsDb) -> Result<(), SignsMappingError> {
+        let mut signs_mut = self.signs.lock().await;
+        *signs_mut = read_user_recent_signs(conn).await?;
+        Ok(())
+    }
+}
+
+pub type SignsMapping = HashMap<substrate_stellar_sdk::PublicKey, u32>;
+
+#[derive(Debug, Error)]
+pub enum SignsMappingError {
+    #[error("{0}")]
+    Mtl(#[from] MtlError),
+    #[error("{0}")]
+    DatabaseError(#[from] TxLoadError),
+}
+
+pub async fn read_user_recent_signs(
+    conn: &TransactionsDb,
+) -> Result<SignsMapping, SignsMappingError> {
+    let month_ago = chrono::Utc::now() - chrono::Duration::days(30);
+    let txs = get_transactions(conn, month_ago.naive_utc()).await?;
+    let mut result = HashMap::new();
+    let mut acc_cache = HashMap::new();
+    for mtx in txs {
+        for (tx, _) in mtx.history.iter().take(1) {
+            let account_id = tx.source_account()?;
+            let account = match acc_cache.get(&account_id) {
+                Some(acc) => acc,
+                None => {
+                    let account = tx.fetch_source_account()?;
+                    acc_cache.insert(account_id.clone(), account);
+                    acc_cache.get(&account_id).unwrap()
+                }
+            };
+            let signs = tx.get_signed_keys(account)?;
+            for (s, _) in signs {
+                *result.entry(s).or_insert(1) += 1;
+            }
+        }
+    }
+
+    Ok(result)
 }
 
 #[get("/")]
@@ -85,11 +133,15 @@ pub struct ViewSigner {
     pub weight: i32,
     pub signed: bool,
     pub telegram: Option<String>,
+    pub singed_monthly: u32,
+    pub is_few_signs: bool,
+    pub is_moderate_signs: bool,
 }
 
 impl ViewSigner {
     pub fn collect(
         telegram_map: &UsersMapping,
+        signs_map: &SignsMapping,
         account: &AccountResponse,
         signs: &[SignatureHint],
     ) -> Result<Vec<Self>, MtlError> {
@@ -98,6 +150,7 @@ impl ViewSigner {
             let signer_weight = s.1;
             let signer_key = s.0;
             if signer_weight > 0 {
+                let singed_monthly = signs_map.get(&signer_key).copied().unwrap_or(0);
                 res.push(ViewSigner {
                     key: std::str::from_utf8(&signer_key.to_encoding())
                         .unwrap()
@@ -105,7 +158,10 @@ impl ViewSigner {
                     weight: signer_weight,
                     signed: signs.contains(&signer_key.get_signature_hint()),
                     telegram: telegram_map.get(&signer_key).cloned(),
-                })
+                    singed_monthly,
+                    is_few_signs: singed_monthly < 4,
+                    is_moderate_signs: singed_monthly < 10,
+                });
             }
         }
         res.sort_by(|a, b| b.weight.cmp(&a.weight));
@@ -169,7 +225,7 @@ async fn view_transaction(
         let tx = get_transaction(&conn, txid.clone()).await?;
         let curr_tx = tx.current().0;
 
-        fn render_tx(
+        async fn render_tx(
             cache: &State<Cache>,
             cookies: &CookieJar<'_>,
             txid: &[u8],
@@ -179,7 +235,7 @@ async fn view_transaction(
         ) -> Result<Template, ViewError> {
             let users = &cache.users;
             let curr_tx = tx.current().0;
-            let is_blocked = cache.is_blocked(txid);
+            let is_blocked = cache.is_blocked(txid).await;
             let mut is_blocker = cookies.get("is_blocker").is_some();
             if !is_blocked && is_blocker {
                 cookies.remove(Cookie::new("is_blocker", ""));
@@ -190,7 +246,10 @@ async fn view_transaction(
             let hints: Vec<SignatureHint> =
                 signs.iter().map(|s| s.0.get_signature_hint()).collect();
             let tx_collected: i32 = signs.iter().map(|s| s.1).sum();
-            let tx_signers = ViewSigner::collect(users, &account, &hints)?;
+            let tx_signers = {
+                let signs_map = cache.signs.lock().await;
+                ViewSigner::collect(users, &signs_map, &account, &hints)?
+            };
             let tx_ignorants: Vec<String> = tx_signers
                 .iter()
                 .filter(|s| !s.signed && s.telegram.is_some())
@@ -224,10 +283,12 @@ async fn view_transaction(
         }
 
         match curr_tx.is_published() {
-            Ok(true) => render_tx(cache, cookies, &txid, &tx, true, None),
+            Ok(true) => render_tx(cache, cookies, &txid, &tx, true, None).await,
             _ => match curr_tx.validate_create() {
-                Ok(_) => render_tx(cache, cookies, &txid, &tx, false, None),
-                Err(e) => render_tx(cache, cookies, &txid, &tx, false, Some(format!("{}", e))),
+                Ok(_) => render_tx(cache, cookies, &txid, &tx, false, None).await,
+                Err(e) => {
+                    render_tx(cache, cookies, &txid, &tx, false, Some(format!("{}", e))).await
+                }
             },
         }
     }
@@ -267,10 +328,10 @@ async fn block_transaction(
     ) -> Result<(), BlockError> {
         let txid = hex::decode(tid)?;
         let _ = get_transaction(&conn, txid.clone()).await?;
-        if cache.is_blocked(&txid) {
+        if cache.is_blocked(&txid).await {
             return Err(BlockError::AlreadyBlocked);
         }
-        cache.block(&txid, Duration::minutes(5));
+        cache.block(&txid, Duration::minutes(5)).await;
         Ok(())
     }
 
@@ -314,10 +375,10 @@ async fn unblock_transaction(
     ) -> Result<(), UnBlockError> {
         let txid = hex::decode(tid)?;
         let _ = get_transaction(&conn, txid.clone()).await?;
-        if !cache.is_blocked(&txid) {
+        if !cache.is_blocked(&txid).await {
             return Err(UnBlockError::NotBlocked);
         }
-        cache.unblock(&txid);
+        cache.unblock(&txid).await;
         Ok(())
     }
 
@@ -418,6 +479,8 @@ pub enum UpdateError {
     MtlError(#[from] MtlError),
     #[error("Database error: {0}")]
     DatabaseError(#[from] diesel::result::Error),
+    #[error("Failed to update signs mapping: {0}")]
+    SignsError(#[from] SignsMappingError),
 }
 
 #[post("/update", data = "<tx>")]
@@ -455,7 +518,8 @@ async fn update_transaction(
             return Err(UpdateError::TransactionNotChanged);
         }
         store_transaction_update(&conn, mtx.clone()).await?;
-        cache.unblock(&txid);
+        cache.unblock(&txid).await;
+        cache.update_signs(&conn).await?;
         Ok(mtx)
     }
 
@@ -504,7 +568,7 @@ async fn check_update_transaction(
     ) -> Result<bool, CheckError> {
         let txid = hex::decode(&txid)?;
         let meta = get_transaction(&conn, txid.clone()).await?;
-        let is_blocked = cache.is_blocked(&txid);
+        let is_blocked = cache.is_blocked(&txid).await;
         let is_published = meta.current().0.is_published().unwrap_or(false);
         Ok(
             block != is_blocked
@@ -540,6 +604,22 @@ async fn run_migrations(rocket: Rocket<Build>) -> Rocket<Build> {
     rocket
 }
 
+async fn load_signs(rocket: Rocket<Build>, signs_mux: Arc<Mutex<SignsMapping>>) -> Rocket<Build> {
+    let conn = TransactionsDb::get_one(&rocket)
+        .await
+        .expect("database connection");
+
+    let signs = read_user_recent_signs(&conn)
+        .await
+        .expect("loaded signatures");
+
+    {
+        let mut mut_signs = signs_mux.lock().await;
+        *mut_signs = signs;
+    }
+    rocket
+}
+
 #[derive(Deserialize)]
 struct Config {
     statics: Option<String>,
@@ -556,6 +636,7 @@ fn rocket() -> _ {
         .statics
         .unwrap_or_else(|| relative!("static").to_owned());
     let users = get_telegram_mapping(&config.users).unwrap();
+    let cache = Cache::new(users);
     builder
         .mount("/", FileServer::from(&statics))
         .mount(
@@ -571,8 +652,11 @@ fn rocket() -> _ {
                 check_update_transaction,
             ],
         )
-        .manage(Cache::new(users))
+        .manage(cache.clone())
         .attach(Template::fairing())
         .attach(TransactionsDb::fairing())
         .attach(AdHoc::on_ignite("Run Migrations", run_migrations))
+        .attach(AdHoc::on_ignite("Load initial signs", move |rocket| {
+            load_signs(rocket, cache.signs)
+        }))
 }

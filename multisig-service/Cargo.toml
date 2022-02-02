@@ -6,14 +6,17 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-montelibero-transactions = { path = "../montelibero-transactions" }
-rocket = { git = "https://github.com/SergioBenitez/Rocket", rev = "31d06ee714c7cdab1911a8cb8fd5f9e148cc201f", features = [ "json" ] }
-hex = "0.4.3"
+chrono = { version = "0.4.19", features = ["serde"] }
 diesel = { version = "1.4.7", features = ["sqlite", "r2d2", "chrono"] }
 diesel_migrations = "1.4.0"
-chrono = { version = "0.4.19", features = ["serde"] }
-thiserror = "1.0.26"
+hex = "0.4.3"
+montelibero-transactions = { path = "../montelibero-transactions" }
+rocket = { git = "https://github.com/SergioBenitez/Rocket", rev = "31d06ee714c7cdab1911a8cb8fd5f9e148cc201f", features = [ "json" ] }
 serde = "1.0.127"
+substrate-stellar-sdk = { git = "https://github.com/ncrashed/substrate-stellar-sdk", rev = "80637af3cf2a7283e67c99543701a6acb75cc87d", features = [ "offchain", "all-types" ] }
+thiserror = "1.0.26"
+tokio = { version = "1.0", features = ["full"] }
+
 
 [dependencies.rocket_dyn_templates]
 git = "https://github.com/SergioBenitez/Rocket"

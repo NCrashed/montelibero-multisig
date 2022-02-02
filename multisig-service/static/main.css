@@ -33,7 +33,7 @@
     width: 100%;
 }
 
-.singers {
+.signers {
     margin-bottom: 15px;
 }
 
@@ -41,8 +41,13 @@
     font-family: monospace;
 }
 
-.singer-signed {
+.signer-signed {
     font-weight: bold;
+    color:forestgreen;
+}
+
+.signer-header {
+    font-size: 14pt;
     color:forestgreen;
 }
 
@@ -58,4 +63,17 @@
     font-weight: bold;
     font-size: 14pt;
     color:forestgreen;
+}
+
+.few-signs {
+    color: darkred;
+    font-weight: bold;
+}
+
+.moderate-signs {
+    color: darkgoldenrod;
+}
+
+.many-signs {
+    color: forestgreen;
 }
