@@ -22,11 +22,13 @@ pub fn is_mtl_account(acc_id: &MuxedAccount) -> Result<bool> {
     let mtlcity_issuerer = MTLCITY_ISSUERER.as_bytes().into_muxed_account_id()?;
     let btc_treasury = BTC_TREASURY.as_bytes().into_muxed_account_id()?;
     let mtl_additional = MTL_ADDITIONAL_ACCOUNT.as_bytes().into_muxed_account_id()?;
+    let btc_foundation = BTC_FOUNDATION.as_bytes().into_muxed_account_id()?;
     Ok(*acc_id == mtl_foundation
         || *acc_id == mtl_issuerer
         || *acc_id == mtlcity_issuerer
         || *acc_id == btc_treasury
-        || *acc_id == mtl_additional)
+        || *acc_id == mtl_additional
+        || *acc_id == btc_foundation)
 }
 
 pub fn guard_mtl_account(tx: &Transaction) -> Result<()> {

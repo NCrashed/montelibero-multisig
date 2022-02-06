@@ -28,6 +28,10 @@ pub fn get_mtl_additional() -> Result<AccountResponse> {
     get_account(MTL_ADDITIONAL_ACCOUNT)
 }
 
+pub fn get_btc_foundation() -> Result<AccountResponse> {
+    get_account(BTC_FOUNDATION)
+}
+
 pub fn get_mtl_signers(account: &AccountResponse) -> Result<Vec<(PublicKey, i32)>> {
     let mut keys = Vec::new();
     for sk in account.signers.iter() {
