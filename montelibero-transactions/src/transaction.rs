@@ -16,7 +16,7 @@ use substrate_stellar_sdk::{
 #[derive(Debug, Clone)]
 pub struct MtlTransaction(TransactionV1Envelope);
 
-pub fn is_mtl_account(acc_id: &MuxedAccount) -> Result<bool> {
+pub fn is_mtl_account(mtl_account: &AccountResponse, acc_id: &MuxedAccount) -> Result<bool> {
     let mtl_foundation = MTL_FOUNDATION.as_bytes().into_muxed_account_id()?;
     let mtl_issuerer = MTL_ISSUERER.as_bytes().into_muxed_account_id()?;
     let mtlcity_issuerer = MTLCITY_ISSUERER.as_bytes().into_muxed_account_id()?;
@@ -24,17 +24,33 @@ pub fn is_mtl_account(acc_id: &MuxedAccount) -> Result<bool> {
     let mtl_additional = MTL_ADDITIONAL_ACCOUNT.as_bytes().into_muxed_account_id()?;
     let btc_foundation = BTC_FOUNDATION.as_bytes().into_muxed_account_id()?;
     let rect_foundation = MTL_RECT_ACCOUNT.as_bytes().into_muxed_account_id()?;
+    let signers: Vec<PublicKey> = get_mtl_signers(&mtl_account)?
+        .iter()
+        .map(|s| s.0.clone())
+        .collect();
     Ok(*acc_id == mtl_foundation
         || *acc_id == mtl_issuerer
         || *acc_id == mtlcity_issuerer
         || *acc_id == btc_treasury
         || *acc_id == mtl_additional
         || *acc_id == btc_foundation
-        || *acc_id == rect_foundation)
+        || *acc_id == rect_foundation
+        || signers
+            .iter()
+            .any(|s| account_pubkey(acc_id).unwrap() == *s))
+}
+
+fn account_pubkey(account: &MuxedAccount) -> Result<PublicKey> {
+    match account {
+        MuxedAccount::KeyTypeEd25519(k) => Ok(AccountId::PublicKeyTypeEd25519(*k)),
+        _ => Err(MtlError::WrongSourceAccount),
+    }
 }
 
 pub fn guard_mtl_account(tx: &Transaction) -> Result<()> {
-    if !is_mtl_account(&tx.source_account)? {
+    let acc = &tx.source_account;
+    let pubkey = get_account(account_pubkey(acc)?)?;
+    if !is_mtl_account(&pubkey, acc)? {
         return Err(MtlError::WrongSourceAccount);
     }
     Ok(())
