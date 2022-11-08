@@ -6,7 +6,7 @@ let
       [
         nixpkgs-mozilla
         (self: super:
-          let chan = self.rustChannelOf { date = "2021-07-05"; channel = "nightly"; };
+          let chan = self.rustChannelOf { date = "2022-11-05"; channel = "nightly"; };
           in {
             rustc = chan.rust;
             cargo = chan.rust;
