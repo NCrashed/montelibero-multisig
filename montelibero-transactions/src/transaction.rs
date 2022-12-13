@@ -24,7 +24,12 @@ pub fn is_mtl_account(mtl_account: &AccountResponse, acc_id: &MuxedAccount) -> R
     let mtl_additional = MTL_ADDITIONAL_ACCOUNT.as_bytes().into_muxed_account_id()?;
     let btc_foundation = BTC_FOUNDATION.as_bytes().into_muxed_account_id()?;
     let rect_foundation = MTL_RECT_ACCOUNT.as_bytes().into_muxed_account_id()?;
-    let multisig_storage = MTL_MULTISIG_STORAGE_ACCOUNT.as_bytes().into_muxed_account_id()?;
+    let multisig_storage = MTL_MULTISIG_STORAGE_ACCOUNT
+        .as_bytes()
+        .into_muxed_account_id()?;
+    let multisig_storage2 = MTL_MULTISIG_STORAGE_ACCOUNT2
+        .as_bytes()
+        .into_muxed_account_id()?;
     let signers: Vec<PublicKey> = get_mtl_signers(&mtl_account)?
         .iter()
         .map(|s| s.0.clone())
@@ -37,6 +42,7 @@ pub fn is_mtl_account(mtl_account: &AccountResponse, acc_id: &MuxedAccount) -> R
         || *acc_id == btc_foundation
         || *acc_id == rect_foundation
         || *acc_id == multisig_storage
+        || *acc_id == multisig_storage2
         || signers
             .iter()
             .any(|s| account_pubkey(acc_id).unwrap() == *s))
